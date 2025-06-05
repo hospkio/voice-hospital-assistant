@@ -9,7 +9,177 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
-      [_ in never]: never
+      appointments: {
+        Row: {
+          appointment_time: string | null
+          created_at: string | null
+          doctor_id: string | null
+          id: string
+          patient_name: string | null
+          patient_phone: string | null
+          status: string | null
+        }
+        Insert: {
+          appointment_time?: string | null
+          created_at?: string | null
+          doctor_id?: string | null
+          id?: string
+          patient_name?: string | null
+          patient_phone?: string | null
+          status?: string | null
+        }
+        Update: {
+          appointment_time?: string | null
+          created_at?: string | null
+          doctor_id?: string | null
+          id?: string
+          patient_name?: string | null
+          patient_phone?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_doctor_id_fkey"
+            columns: ["doctor_id"]
+            isOneToOne: false
+            referencedRelation: "doctors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      departments: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          floor: number
+          id: string
+          name: string
+          room_number: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          floor: number
+          id?: string
+          name: string
+          room_number?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          floor?: number
+          id?: string
+          name?: string
+          room_number?: string | null
+        }
+        Relationships: []
+      }
+      doctors: {
+        Row: {
+          available_slots: Json | null
+          created_at: string | null
+          department_id: string | null
+          id: string
+          name: string
+          specialization: string | null
+        }
+        Insert: {
+          available_slots?: Json | null
+          created_at?: string | null
+          department_id?: string | null
+          id?: string
+          name: string
+          specialization?: string | null
+        }
+        Update: {
+          available_slots?: Json | null
+          created_at?: string | null
+          department_id?: string | null
+          id?: string
+          name?: string
+          specialization?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "doctors_department_id_fkey"
+            columns: ["department_id"]
+            isOneToOne: false
+            referencedRelation: "departments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kiosk_interactions: {
+        Row: {
+          confidence_score: number | null
+          created_at: string | null
+          entities: Json | null
+          id: string
+          intent_recognized: string | null
+          language_detected: string | null
+          response_time_ms: number | null
+          session_id: string | null
+          system_response: string | null
+          user_query: string | null
+        }
+        Insert: {
+          confidence_score?: number | null
+          created_at?: string | null
+          entities?: Json | null
+          id?: string
+          intent_recognized?: string | null
+          language_detected?: string | null
+          response_time_ms?: number | null
+          session_id?: string | null
+          system_response?: string | null
+          user_query?: string | null
+        }
+        Update: {
+          confidence_score?: number | null
+          created_at?: string | null
+          entities?: Json | null
+          id?: string
+          intent_recognized?: string | null
+          language_detected?: string | null
+          response_time_ms?: number | null
+          session_id?: string | null
+          system_response?: string | null
+          user_query?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "kiosk_interactions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "kiosk_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      kiosk_sessions: {
+        Row: {
+          created_at: string | null
+          id: string
+          language_code: string | null
+          session_id: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          language_code?: string | null
+          session_id: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          language_code?: string | null
+          session_id?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never

@@ -57,7 +57,15 @@ const Index = () => {
               onClick={() => navigate('/kiosk')}
             >
               <Zap className="mr-2 h-5 w-5" />
-              Launch Kiosk
+              Basic Kiosk
+            </Button>
+            <Button 
+              size="lg" 
+              className="bg-green-600 hover:bg-green-700 text-lg px-8 py-3"
+              onClick={() => navigate('/enhanced-kiosk')}
+            >
+              <Zap className="mr-2 h-5 w-5" />
+              Enhanced Kiosk (Google AI)
             </Button>
             <Button 
               variant="outline" 
@@ -119,15 +127,24 @@ const Index = () => {
         <div className="mt-12 text-center">
           <h2 className="text-2xl font-bold text-gray-800 mb-4">Ready to Get Started?</h2>
           <p className="text-gray-600 mb-6">
-            Experience the power of voice-enabled hospital assistance
+            Experience the power of voice-enabled hospital assistance with Google Cloud AI
           </p>
-          <Button 
-            size="lg"
-            className="bg-green-600 hover:bg-green-700 text-lg px-12 py-3"
-            onClick={() => navigate('/kiosk')}
-          >
-            Try Kiosk Demo
-          </Button>
+          <div className="flex gap-4 justify-center">
+            <Button 
+              size="lg"
+              className="bg-blue-600 hover:bg-blue-700 text-lg px-12 py-3"
+              onClick={() => navigate('/kiosk')}
+            >
+              Basic Demo
+            </Button>
+            <Button 
+              size="lg"
+              className="bg-green-600 hover:bg-green-700 text-lg px-12 py-3"
+              onClick={() => navigate('/enhanced-kiosk')}
+            >
+              Google AI Demo
+            </Button>
+          </div>
         </div>
       </div>
     </div>
