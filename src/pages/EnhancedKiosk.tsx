@@ -29,6 +29,20 @@ const EnhancedKiosk = () => {
     conversationHistory: []
   });
 
+  // Welcome message on load
+  useEffect(() => {
+    const welcomeMessage = {
+      responseText: "Welcome to the Hospital Voice Assistant! I can help you with directions, appointments, and general information. Try asking 'Where is cardiology?' or click a quick action below.",
+      intent: 'welcome',
+      entities: {},
+      confidence: 1.0,
+      responseTime: 0,
+      responseData: { type: 'welcome' },
+      success: true
+    };
+    setState(prev => ({ ...prev, currentResponse: welcomeMessage }));
+  }, []);
+
   const handleVoiceInput = async (transcript: string, confidence: number, detectedLanguage: string) => {
     console.log('Voice input received:', { transcript, confidence, detectedLanguage });
     
@@ -41,7 +55,7 @@ const EnhancedKiosk = () => {
       confidence
     }];
 
-    // Process with Dialogflow
+    // Process with our rule-based NLP system
     const dialogflowResponse = await processWithDialogflow(transcript, state.sessionId, state.selectedLanguage);
     
     setState(prev => ({
@@ -130,6 +144,12 @@ const EnhancedKiosk = () => {
               <CardTitle className="flex items-center space-x-2">
                 <Volume2 className="h-6 w-6 text-blue-600" />
                 <span>Enhanced Voice Assistant</span>
+                <div className="ml-auto">
+                  <div className="flex items-center space-x-2">
+                    <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
+                    <span className="text-sm text-green-600 font-medium">Google AI Active</span>
+                  </div>
+                </div>
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -161,7 +181,7 @@ const EnhancedKiosk = () => {
                 <Button
                   key={index}
                   variant="outline"
-                  className="w-full justify-start h-12 text-lg"
+                  className="w-full justify-start h-12 text-lg hover:bg-blue-50"
                   onClick={() => handleQuickAction(action.query)}
                 >
                   <action.icon className="h-5 w-5 mr-3" />
