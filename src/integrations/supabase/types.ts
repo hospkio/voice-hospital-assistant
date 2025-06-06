@@ -76,26 +76,41 @@ export type Database = {
       }
       doctors: {
         Row: {
+          available_days: Json | null
           available_slots: Json | null
+          available_times: Json | null
+          consultation_fee: number | null
           created_at: string | null
           department_id: string | null
+          experience_years: number | null
           id: string
+          language_support: Json | null
           name: string
           specialization: string | null
         }
         Insert: {
+          available_days?: Json | null
           available_slots?: Json | null
+          available_times?: Json | null
+          consultation_fee?: number | null
           created_at?: string | null
           department_id?: string | null
+          experience_years?: number | null
           id?: string
+          language_support?: Json | null
           name: string
           specialization?: string | null
         }
         Update: {
+          available_days?: Json | null
           available_slots?: Json | null
+          available_times?: Json | null
+          consultation_fee?: number | null
           created_at?: string | null
           department_id?: string | null
+          experience_years?: number | null
           id?: string
+          language_support?: Json | null
           name?: string
           specialization?: string | null
         }
@@ -108,6 +123,39 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      hospital_info: {
+        Row: {
+          answer_english: string
+          answer_malayalam: string | null
+          answer_tamil: string | null
+          category: string
+          created_at: string | null
+          id: string
+          keywords: Json | null
+          question: string
+        }
+        Insert: {
+          answer_english: string
+          answer_malayalam?: string | null
+          answer_tamil?: string | null
+          category: string
+          created_at?: string | null
+          id?: string
+          keywords?: Json | null
+          question: string
+        }
+        Update: {
+          answer_english?: string
+          answer_malayalam?: string | null
+          answer_tamil?: string | null
+          category?: string
+          created_at?: string | null
+          id?: string
+          keywords?: Json | null
+          question?: string
+        }
+        Relationships: []
       }
       kiosk_interactions: {
         Row: {
@@ -177,6 +225,36 @@ export type Database = {
           language_code?: string | null
           session_id?: string
           updated_at?: string | null
+        }
+        Relationships: []
+      }
+      multilingual_responses: {
+        Row: {
+          created_at: string | null
+          id: string
+          intent_name: string
+          parameters: Json | null
+          response_english: string
+          response_malayalam: string | null
+          response_tamil: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          intent_name: string
+          parameters?: Json | null
+          response_english: string
+          response_malayalam?: string | null
+          response_tamil?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          intent_name?: string
+          parameters?: Json | null
+          response_english?: string
+          response_malayalam?: string | null
+          response_tamil?: string | null
         }
         Relationships: []
       }

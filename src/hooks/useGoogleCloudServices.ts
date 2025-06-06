@@ -1,20 +1,7 @@
 
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 
-export interface SpeechToTextResult {
-  transcript: string;
-  confidence: number;
-  detectedLanguage: string;
-  success: boolean;
-}
-
-export interface TextToSpeechResult {
-  audioContent: string;
-  success: boolean;
-}
-
-export interface DialogflowResult {
+interface DialogflowResponse {
   responseText: string;
   intent: string;
   entities: any;
@@ -24,103 +11,195 @@ export interface DialogflowResult {
   success: boolean;
 }
 
+interface TTSResponse {
+  success: boolean;
+  audioContent?: string;
+  error?: string;
+}
+
 export const useGoogleCloudServices = () => {
-  const [isProcessing, setIsProcessing] = useState(false);
-
-  const speechToText = async (audioBlob: Blob, languageCode: string = 'en-US'): Promise<SpeechToTextResult> => {
-    setIsProcessing(true);
-    try {
-      // Convert blob to base64
-      const reader = new FileReader();
-      const audioData = await new Promise<string>((resolve) => {
-        reader.onloadend = () => {
-          const result = reader.result as string;
-          resolve(result.split(',')[1]); // Remove data URL prefix
-        };
-        reader.readAsDataURL(audioBlob);
-      });
-
-      const { data, error } = await supabase.functions.invoke('speech-to-text', {
-        body: { audioData, languageCode }
-      });
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Speech-to-text error:', error);
-      return { transcript: '', confidence: 0, detectedLanguage: languageCode, success: false };
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const textToSpeech = async (text: string, languageCode: string = 'en-US'): Promise<TextToSpeechResult> => {
-    try {
-      const { data, error } = await supabase.functions.invoke('text-to-speech', {
-        body: { text, languageCode }
-      });
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Text-to-speech error:', error);
-      return { audioContent: '', success: false };
-    }
-  };
+  const [isLoading, setIsLoading] = useState(false);
 
   const processWithDialogflow = async (
     query: string, 
     sessionId: string, 
     languageCode: string = 'en-US'
-  ): Promise<DialogflowResult> => {
-    setIsProcessing(true);
+  ): Promise<DialogflowResponse> => {
+    setIsLoading(true);
+    
     try {
-      const { data, error } = await supabase.functions.invoke('dialogflow-process', {
-        body: { query, sessionId, languageCode }
+      console.log('Sending to enhanced Dialogflow:', { query, sessionId, languageCode });
+      
+      const response = await fetch('/functions/v1/enhanced-dialogflow-process', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          query,
+          sessionId,
+          languageCode
+        }),
       });
 
-      if (error) throw error;
-      return data;
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log('Enhanced Dialogflow response:', result);
+      
+      return result;
     } catch (error) {
-      console.error('Dialogflow processing error:', error);
-      return {
-        responseText: 'I encountered an error processing your request. Please try again.',
-        intent: 'error',
-        entities: {},
-        confidence: 0,
-        responseTime: 0,
-        responseData: {},
-        success: false
-      };
+      console.error('Error processing with enhanced Dialogflow:', error);
+      
+      // Fallback to local processing if the edge function fails
+      return fallbackLocalProcessing(query, sessionId, languageCode);
     } finally {
-      setIsProcessing(false);
+      setIsLoading(false);
     }
   };
 
-  const playAudio = async (audioContent: string) => {
+  const speechToText = async (audioBlob: Blob, languageCode: string = 'en-US') => {
+    setIsLoading(true);
+    
     try {
-      const audioBlob = new Blob([Uint8Array.from(atob(audioContent), c => c.charCodeAt(0))], { type: 'audio/mp3' });
+      const formData = new FormData();
+      formData.append('audio', audioBlob);
+      formData.append('languageCode', languageCode);
+
+      const response = await fetch('/functions/v1/speech-to-text', {
+        method: 'POST',
+        body: formData,
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        return {
+          transcript: result.transcript,
+          confidence: result.confidence,
+          detectedLanguage: result.detectedLanguage || languageCode
+        };
+      } else {
+        throw new Error(result.error || 'Speech to text failed');
+      }
+    } catch (error) {
+      console.error('Speech to text error:', error);
+      throw error;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const textToSpeech = async (text: string, languageCode: string = 'en-US'): Promise<TTSResponse> => {
+    setIsLoading(true);
+    
+    try {
+      const response = await fetch('/functions/v1/text-to-speech', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          text,
+          languageCode,
+          voiceName: getVoiceName(languageCode)
+        }),
+      });
+
+      const result = await response.json();
+      return result;
+    } catch (error) {
+      console.error('Text to speech error:', error);
+      return { success: false, error: error.message };
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const playAudio = async (audioContent: string): Promise<void> => {
+    try {
+      // Convert base64 audio to blob
+      const audioData = atob(audioContent);
+      const audioArray = new Uint8Array(audioData.length);
+      for (let i = 0; i < audioData.length; i++) {
+        audioArray[i] = audioData.charCodeAt(i);
+      }
+      
+      const audioBlob = new Blob([audioArray], { type: 'audio/mp3' });
       const audioUrl = URL.createObjectURL(audioBlob);
+      
       const audio = new Audio(audioUrl);
       
-      await new Promise<void>((resolve, reject) => {
+      return new Promise((resolve, reject) => {
         audio.onended = () => {
           URL.revokeObjectURL(audioUrl);
           resolve();
         };
-        audio.onerror = reject;
+        
+        audio.onerror = (error) => {
+          URL.revokeObjectURL(audioUrl);
+          reject(error);
+        };
+        
         audio.play();
       });
     } catch (error) {
-      console.error('Audio playback error:', error);
+      console.error('Error playing audio:', error);
+      throw error;
     }
   };
 
   return {
+    processWithDialogflow,
     speechToText,
     textToSpeech,
-    processWithDialogflow,
     playAudio,
-    isProcessing
+    isLoading
   };
 };
+
+// Fallback local processing for when the edge function is unavailable
+function fallbackLocalProcessing(query: string, sessionId: string, languageCode: string): DialogflowResponse {
+  const normalizedQuery = query.toLowerCase();
+  
+  // Simple local intent classification
+  let intent = 'unknown';
+  let responseText = "I'm sorry, I'm having trouble connecting to our servers. Please try again.";
+  let confidence = 0.3;
+  
+  if (normalizedQuery.includes('cardiology')) {
+    intent = 'navigation.department';
+    responseText = "The Cardiology department is located on the 3rd floor, Room 301-315. They specialize in heart and cardiovascular diseases treatment.";
+    confidence = 0.7;
+  } else if (normalizedQuery.includes('emergency')) {
+    intent = 'navigation.department';
+    responseText = "The Emergency department is on the 1st floor, Room 101-120. Emergency care is available 24/7.";
+    confidence = 0.8;
+  } else if (normalizedQuery.includes('appointment')) {
+    intent = 'appointment.book';
+    responseText = "I can help you book an appointment. Which department would you like to visit?";
+    confidence = 0.6;
+  }
+  
+  return {
+    responseText,
+    intent,
+    entities: {},
+    confidence,
+    responseTime: 50,
+    responseData: { type: 'fallback' },
+    success: true
+  };
+}
+
+function getVoiceName(languageCode: string): string {
+  const voiceMap = {
+    'en-US': 'en-US-Wavenet-D',
+    'ta-IN': 'ta-IN-Wavenet-A',
+    'ml-IN': 'ml-IN-Wavenet-A'
+  };
+  
+  return voiceMap[languageCode] || voiceMap['en-US'];
+}
