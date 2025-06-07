@@ -1,6 +1,5 @@
-
 import React, { useState, useEffect } from 'react';
-import { Volume2, Settings, MapPin, Calendar, Info, HelpCircle, Database, Camera, MessageCircle } from 'lucide-react';
+import { Volume2, Settings, MapPin, Calendar, Info, HelpCircle, Camera, MessageCircle, Stethoscope } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -8,11 +7,12 @@ import EnhancedVoiceRecorder from '@/components/EnhancedVoiceRecorder';
 import EnhancedResponseDisplay from '@/components/EnhancedResponseDisplay';
 import LanguageSelector from '@/components/LanguageSelector';
 import HospitalDataDisplay from '@/components/HospitalDataDisplay';
-import CameraFeed from '@/components/CameraFeed';
+import EnhancedFaceDetectionCamera from '@/components/EnhancedFaceDetectionCamera';
 import HospitalFloorMap from '@/components/HospitalFloorMap';
 import AppointmentBookingModal from '@/components/AppointmentBookingModal';
 import { useDialogflowCXService } from '@/hooks/useDialogflowCXService';
 import { useGoogleCloudServices } from '@/hooks/useGoogleCloudServices';
+import { useAutoLanguageDetection } from '@/hooks/useAutoLanguageDetection';
 import { useToast } from '@/hooks/use-toast';
 import { hospitalDataService } from '@/services/hospitalDataService';
 
@@ -23,16 +23,19 @@ interface KioskState {
   sessionId: string;
   conversationHistory: any[];
   selectedDepartment?: string;
-  peopleDetected: boolean;
+  facesDetected: boolean;
+  faceCount: number;
   autoInteractionEnabled: boolean;
   showAppointmentModal: boolean;
   lastGreetingTime: number;
+  isAutoDetecting: boolean;
 }
 
 const EnhancedKiosk = () => {
   const { toast } = useToast();
   const { processWithDialogflowCX } = useDialogflowCXService();
   const { textToSpeech, playAudio } = useGoogleCloudServices();
+  const { startListening: detectLanguage } = useAutoLanguageDetection();
   
   const [state, setState] = useState<KioskState>({
     isListening: false,
@@ -41,28 +44,30 @@ const EnhancedKiosk = () => {
     sessionId: `session_${Date.now()}`,
     conversationHistory: [],
     selectedDepartment: undefined,
-    peopleDetected: false,
+    facesDetected: false,
+    faceCount: 0,
     autoInteractionEnabled: true,
     showAppointmentModal: false,
-    lastGreetingTime: 0
+    lastGreetingTime: 0,
+    isAutoDetecting: false
   });
 
-  // Auto-greeting when people are detected
+  // Auto-greeting when faces are detected
   useEffect(() => {
-    if (state.peopleDetected && state.autoInteractionEnabled) {
+    if (state.facesDetected && state.autoInteractionEnabled && !state.isAutoDetecting) {
       const now = Date.now();
-      // Prevent greeting spam - only greet once every 30 seconds
-      if (now - state.lastGreetingTime > 30000) {
+      // Prevent greeting spam - only greet once every 15 seconds
+      if (now - state.lastGreetingTime > 15000) {
         handleAutoGreeting();
         setState(prev => ({ ...prev, lastGreetingTime: now }));
       }
     }
-  }, [state.peopleDetected, state.autoInteractionEnabled]);
+  }, [state.facesDetected, state.autoInteractionEnabled]);
 
   // Welcome message on load
   useEffect(() => {
     const welcomeMessage = {
-      responseText: "Welcome to City Hospital! I'm your AI assistant with advanced voice recognition and camera detection. Walk in front of the camera or say 'Hello' to start.",
+      responseText: "Welcome to MediCare Smart Kiosk! Your intelligent healthcare assistant with advanced AI and voice recognition. I can help you with directions, appointments, and hospital information in multiple languages.",
       intent: 'welcome',
       entities: {},
       confidence: 1.0,
@@ -74,58 +79,84 @@ const EnhancedKiosk = () => {
   }, []);
 
   const handleAutoGreeting = async () => {
-    const greetings = {
-      'en-US': "Hello! Welcome to City Hospital. I'm here to help you with directions, appointments, and information. How may I assist you today?",
-      'ta-IN': "வணக்கம்! சிட்டி மருத்துவமனைக்கு வரவேற்கிறோம். திசைகள், அப்பாயிண்ட்மென்ட்கள் மற்றும் தகவல்களுக்கு நான் இங்கே உள்ளேன். இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்?",
-      'ml-IN': "നമസ്കാരം! സിറ്റി ഹോസ്പിറ്റലിലേക്ക് സ്വാഗതം. ദിശകൾ, അപ്പോയിന്റ്മെന്റുകൾ, വിവരങ്ങൾ എന്നിവയിൽ സഹായിക്കാൻ ഞാൻ ഇവിടെയുണ്ട്. ഇന്ന് എനിക്ക് നിങ്ങളെ എങ്ങനെ സഹായിക്കാം?"
-    };
-
-    const greeting = greetings[state.selectedLanguage] || greetings['en-US'];
+    setState(prev => ({ ...prev, isAutoDetecting: true }));
     
-    const greetingResponse = {
-      responseText: greeting,
-      intent: 'auto-greeting',
-      entities: {},
-      confidence: 1.0,
-      responseTime: 0,
-      responseData: { type: 'auto-greeting', triggered: 'camera' },
-      success: true
+    const greetings = {
+      'en-US': "Hello! Welcome to MediCare Hospital. I'm your AI assistant here to help you with directions, appointments, and information. How may I assist you today?",
+      'ta-IN': "வணக்கம்! மெடிகேர் மருத்துவமனைக்கு வரவேற்கிறோம். திசைகள், அப்பாயிண்ட்மென்ட்கள் மற்றும் தகவல்களுக்கு நான் உங்கள் AI உதவியாளர். இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்?",
+      'ml-IN': "നമസ്കാരം! മെഡികെയർ ഹോസ്പിറ്റലിലേക്ക് സ്വാഗതം. ദിശകൾ, അപ്പോയിന്റ്മെന്റുകൾ, വിവരങ്ങൾ എന്നിവയിൽ സഹായിക്കാൻ ഞാൻ നിങ്ങളുടെ AI അസിസ്റ്റന്റാണ്. ഇന്ന് എനിക്ക് നിങ്ങളെ എങ്ങനെ സഹായിക്കാം?",
+      'hi-IN': "नमस्ते! मेडिकेयर अस्पताल में आपका स्वागत है। दिशा-निर्देश, अपॉइंटमेंट और जानकारी के लिए मैं आपका AI सहायक हूं। आज मैं आपकी कैसे सहायता कर सकता हूं?"
     };
 
-    setState(prev => ({ 
-      ...prev, 
-      currentResponse: greetingResponse,
-      conversationHistory: [...prev.conversationHistory, {
-        type: 'assistant',
-        content: greeting,
-        timestamp: new Date(),
-        intent: 'auto-greeting',
-        confidence: 1.0,
-        trigger: 'camera'
-      }]
-    }));
-
-    // Auto-play greeting
     try {
+      // Auto-detect language from user's first speech
+      toast({
+        title: "👋 Face detected!",
+        description: "Please speak to start. I'll detect your language automatically.",
+      });
+
+      const greeting = greetings[state.selectedLanguage] || greetings['en-US'];
+      
+      const greetingResponse = {
+        responseText: greeting,
+        intent: 'auto-greeting',
+        entities: {},
+        confidence: 1.0,
+        responseTime: 0,
+        responseData: { type: 'auto-greeting', triggered: 'face-detection' },
+        success: true
+      };
+
+      setState(prev => ({ 
+        ...prev, 
+        currentResponse: greetingResponse,
+        conversationHistory: [...prev.conversationHistory, {
+          type: 'assistant',
+          content: greeting,
+          timestamp: new Date(),
+          intent: 'auto-greeting',
+          confidence: 1.0,
+          trigger: 'face-detection'
+        }]
+      }));
+
+      // Auto-play greeting
       const ttsResult = await textToSpeech(greeting, state.selectedLanguage);
       if (ttsResult.success) {
         await playAudio(ttsResult.audioContent);
       }
-    } catch (error) {
-      console.error('Auto-greeting TTS error:', error);
-    }
 
-    toast({
-      title: "Person detected! 👋",
-      description: "AI assistant is ready to help you.",
-    });
+      // Start automatic language detection
+      setTimeout(async () => {
+        try {
+          const languageResult = await detectLanguage();
+          if (languageResult) {
+            setState(prev => ({ ...prev, selectedLanguage: languageResult.detectedLanguage }));
+            await handleVoiceInput(languageResult.transcript, languageResult.confidence, languageResult.detectedLanguage);
+          }
+        } catch (error) {
+          console.log('No speech detected during auto-detection phase');
+        } finally {
+          setState(prev => ({ ...prev, isAutoDetecting: false }));
+        }
+      }, 2000);
+
+    } catch (error) {
+      console.error('Auto-greeting error:', error);
+      setState(prev => ({ ...prev, isAutoDetecting: false }));
+    }
   };
 
   const handleVoiceInput = async (transcript: string, confidence: number, detectedLanguage: string) => {
     console.log('Voice input received:', { transcript, confidence, detectedLanguage });
     
+    // Update language if detected differently
+    if (detectedLanguage !== state.selectedLanguage) {
+      setState(prev => ({ ...prev, selectedLanguage: detectedLanguage }));
+    }
+    
     // Update session in database
-    await hospitalDataService.createOrUpdateKioskSession(state.sessionId, state.selectedLanguage);
+    await hospitalDataService.createOrUpdateKioskSession(state.sessionId, detectedLanguage);
     
     // Add to conversation history
     const newHistory = [...state.conversationHistory, {
@@ -137,7 +168,7 @@ const EnhancedKiosk = () => {
     }];
 
     // Process with Dialogflow CX
-    const dialogflowResponse = await processWithDialogflowCX(transcript, state.sessionId, state.selectedLanguage);
+    const dialogflowResponse = await processWithDialogflowCX(transcript, state.sessionId, detectedLanguage);
     
     // Handle appointment booking intent
     if (dialogflowResponse.intent?.toLowerCase().includes('appointment')) {
@@ -164,13 +195,13 @@ const EnhancedKiosk = () => {
     }));
 
     toast({
-      title: "Voice processed ✅",
-      description: `Understood: "${transcript}" (${Math.round(confidence * 100)}% confidence)`,
+      title: "🎤 Voice processed",
+      description: `Language: ${detectedLanguage} (${Math.round(confidence * 100)}% confidence)`,
     });
   };
 
-  const handlePeopleDetection = (detected: boolean) => {
-    setState(prev => ({ ...prev, peopleDetected: detected }));
+  const handleFaceDetection = (detected: boolean, count: number) => {
+    setState(prev => ({ ...prev, facesDetected: detected, faceCount: count }));
   };
 
   const quickActions = [
@@ -210,29 +241,37 @@ const EnhancedKiosk = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex flex-col">
-      {/* Modern Header */}
-      <header className="bg-white/90 backdrop-blur-sm shadow-lg border-b border-blue-100 p-6 sticky top-0 z-50">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex flex-col touch-manipulation">
+      {/* Enhanced Professional Header */}
+      <header className="bg-white/95 backdrop-blur-md shadow-lg border-b border-blue-100 p-6 sticky top-0 z-50">
         <div className="max-w-7xl mx-auto flex justify-between items-center">
           <div className="flex items-center space-x-4">
             <div className="bg-gradient-to-r from-blue-600 to-green-600 text-white p-4 rounded-2xl shadow-lg">
-              <Volume2 className="h-8 w-8" />
+              <Stethoscope className="h-8 w-8" />
             </div>
             <div>
               <h1 className="text-4xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
-                City Hospital AI
+                MediCare Smart Kiosk
               </h1>
-              <p className="text-gray-600 text-lg">Smart Assistant with Camera Detection & WhatsApp Integration</p>
+              <p className="text-gray-600 text-lg">AI Healthcare Assistant • Multi-Language • Face Detection • Voice AI</p>
             </div>
           </div>
           
           <div className="flex items-center space-x-4">
-            {state.peopleDetected && (
-              <div className="flex items-center space-x-2 bg-green-100 px-4 py-2 rounded-full">
+            {state.facesDetected && (
+              <div className="flex items-center space-x-2 bg-green-100 px-4 py-2 rounded-full border border-green-300 shadow-sm">
                 <Camera className="h-5 w-5 text-green-600" />
-                <span className="text-green-800 font-medium">Person Detected</span>
+                <span className="text-green-800 font-semibold">
+                  {state.faceCount} Person{state.faceCount !== 1 ? 's' : ''} Ready
+                </span>
               </div>
             )}
+            
+            <div className="bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
+              <span className="text-blue-700 text-sm font-medium">
+                Language: {state.selectedLanguage}
+              </span>
+            </div>
             
             <LanguageSelector 
               selected={state.selectedLanguage}
@@ -246,7 +285,7 @@ const EnhancedKiosk = () => {
                 ...prev, 
                 autoInteractionEnabled: !prev.autoInteractionEnabled 
               }))}
-              className={state.autoInteractionEnabled ? 'bg-green-50 border-green-200' : ''}
+              className={`h-12 w-12 ${state.autoInteractionEnabled ? 'bg-green-50 border-green-200' : ''}`}
             >
               <Settings className="h-5 w-5" />
             </Button>
@@ -257,11 +296,11 @@ const EnhancedKiosk = () => {
       {/* Main Content */}
       <main className="flex-1 max-w-7xl mx-auto w-full p-6">
         <Tabs defaultValue="assistant" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="assistant">AI Assistant</TabsTrigger>
-            <TabsTrigger value="map">Floor Map</TabsTrigger>
-            <TabsTrigger value="departments">Departments</TabsTrigger>
-            <TabsTrigger value="appointments">Appointments</TabsTrigger>
+          <TabsList className="grid w-full grid-cols-4 h-14 text-lg">
+            <TabsTrigger value="assistant" className="h-12">🤖 AI Assistant</TabsTrigger>
+            <TabsTrigger value="map" className="h-12">🗺️ Floor Map</TabsTrigger>
+            <TabsTrigger value="departments" className="h-12">🏥 Departments</TabsTrigger>
+            <TabsTrigger value="appointments" className="h-12">📅 Appointments</TabsTrigger>
           </TabsList>
 
           <TabsContent value="assistant" className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -270,13 +309,13 @@ const EnhancedKiosk = () => {
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {/* Voice Recorder */}
                 <Card className="border-2 border-blue-200 shadow-lg">
-                  <CardHeader>
+                  <CardHeader className="bg-gradient-to-r from-blue-50 to-blue-100">
                     <CardTitle className="flex items-center space-x-2">
                       <Volume2 className="h-6 w-6 text-blue-600" />
-                      <span>Voice Assistant</span>
+                      <span className="text-blue-800">Voice Assistant</span>
                     </CardTitle>
                   </CardHeader>
-                  <CardContent>
+                  <CardContent className="p-6">
                     <EnhancedVoiceRecorder 
                       isListening={state.isListening}
                       onVoiceData={handleVoiceInput}
@@ -288,9 +327,9 @@ const EnhancedKiosk = () => {
                   </CardContent>
                 </Card>
 
-                {/* Camera Feed */}
-                <CameraFeed 
-                  onPeopleDetected={handlePeopleDetection}
+                {/* Enhanced Face Detection Camera */}
+                <EnhancedFaceDetectionCamera 
+                  onFaceDetected={handleFaceDetection}
                   autoStart={state.autoInteractionEnabled}
                 />
               </div>
@@ -301,18 +340,18 @@ const EnhancedKiosk = () => {
               />
             </div>
 
-            {/* Control Panel */}
+            {/* Enhanced Control Panel */}
             <div className="space-y-6">
-              <Card className="shadow-lg">
-                <CardHeader>
-                  <CardTitle>Quick Actions</CardTitle>
+              <Card className="shadow-lg border-2 border-green-200">
+                <CardHeader className="bg-gradient-to-r from-green-50 to-green-100">
+                  <CardTitle className="text-green-800">Quick Actions</CardTitle>
                 </CardHeader>
-                <CardContent className="space-y-3">
+                <CardContent className="space-y-3 p-6">
                   {quickActions.map((action, index) => (
                     <Button
                       key={index}
                       variant="outline"
-                      className="w-full justify-start h-14 text-lg hover:shadow-md transition-all duration-200"
+                      className="w-full justify-start h-16 text-lg hover:shadow-md transition-all duration-200 border-2"
                       onClick={() => handleQuickAction(action.query)}
                     >
                       <action.icon className="h-6 w-6 mr-3" />
@@ -322,14 +361,14 @@ const EnhancedKiosk = () => {
                 </CardContent>
               </Card>
 
-              <Card className="shadow-lg">
-                <CardHeader>
-                  <CardTitle>Session Status</CardTitle>
+              <Card className="shadow-lg border-2 border-purple-200">
+                <CardHeader className="bg-gradient-to-r from-purple-50 to-purple-100">
+                  <CardTitle className="text-purple-800">Session Status</CardTitle>
                 </CardHeader>
-                <CardContent className="text-sm space-y-3">
+                <CardContent className="text-sm space-y-3 p-6">
                   <div className="flex justify-between">
                     <span className="font-semibold">Language:</span>
-                    <span>{state.selectedLanguage}</span>
+                    <span className="font-mono">{state.selectedLanguage}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-semibold">Session:</span>
@@ -337,14 +376,22 @@ const EnhancedKiosk = () => {
                   </div>
                   <div className="flex justify-between">
                     <span className="font-semibold">Interactions:</span>
-                    <span>{state.conversationHistory.length}</span>
+                    <span className="font-bold">{state.conversationHistory.length}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="font-semibold">Auto-Assist:</span>
-                    <span className={`px-2 py-1 rounded text-xs ${
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
                       state.autoInteractionEnabled ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-800'
                     }`}>
-                      {state.autoInteractionEnabled ? 'ON' : 'OFF'}
+                      {state.autoInteractionEnabled ? 'ACTIVE' : 'OFF'}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="font-semibold">Face Detection:</span>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                      state.facesDetected ? 'bg-blue-100 text-blue-800' : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {state.facesDetected ? `${state.faceCount} DETECTED` : 'NONE'}
                     </span>
                   </div>
                 </CardContent>
@@ -367,43 +414,43 @@ const EnhancedKiosk = () => {
           </TabsContent>
 
           <TabsContent value="appointments">
-            <Card className="shadow-lg">
-              <CardHeader>
+            <Card className="shadow-lg border-2 border-green-200">
+              <CardHeader className="bg-gradient-to-r from-green-50 to-green-100">
                 <CardTitle className="flex items-center space-x-2">
                   <MessageCircle className="h-6 w-6 text-green-600" />
-                  <span>WhatsApp Appointment Booking</span>
+                  <span className="text-green-800">WhatsApp Appointment Booking</span>
                 </CardTitle>
               </CardHeader>
-              <CardContent className="text-center space-y-6">
-                <div className="bg-green-50 border border-green-200 rounded-lg p-6">
-                  <h3 className="text-xl font-semibold text-green-800 mb-3">
+              <CardContent className="text-center space-y-6 p-8">
+                <div className="bg-green-50 border-2 border-green-200 rounded-xl p-8">
+                  <h3 className="text-2xl font-bold text-green-800 mb-4">
                     📱 Book via WhatsApp
                   </h3>
-                  <p className="text-green-700 mb-4">
+                  <p className="text-green-700 mb-6 text-lg">
                     Get instant appointment confirmations sent directly to your WhatsApp!
                   </p>
                   <Button 
                     onClick={() => setState(prev => ({ ...prev, showAppointmentModal: true }))}
-                    className="bg-green-600 hover:bg-green-700"
+                    className="bg-green-600 hover:bg-green-700 h-14 px-8 text-lg"
                     size="lg"
                   >
-                    <Calendar className="h-5 w-5 mr-2" />
+                    <Calendar className="h-6 w-6 mr-3" />
                     Book Appointment Now
                   </Button>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
-                  <div className="bg-white border rounded-lg p-4">
-                    <h4 className="font-semibold text-blue-600 mb-2">1. Book Online</h4>
-                    <p>Fill in your details and preferred time slot</p>
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm">
+                  <div className="bg-white border-2 border-blue-200 rounded-xl p-6 shadow-sm">
+                    <h4 className="font-bold text-blue-600 mb-3 text-lg">1. Book Online</h4>
+                    <p className="text-gray-700">Fill in your details and preferred time slot</p>
                   </div>
-                  <div className="bg-white border rounded-lg p-4">
-                    <h4 className="font-semibold text-green-600 mb-2">2. Get Token</h4>
-                    <p>Receive token number via WhatsApp instantly</p>
+                  <div className="bg-white border-2 border-green-200 rounded-xl p-6 shadow-sm">
+                    <h4 className="font-bold text-green-600 mb-3 text-lg">2. Get Token</h4>
+                    <p className="text-gray-700">Receive token number via WhatsApp instantly</p>
                   </div>
-                  <div className="bg-white border rounded-lg p-4">
-                    <h4 className="font-semibold text-purple-600 mb-2">3. Visit Hospital</h4>
-                    <p>Show your token for quick check-in</p>
+                  <div className="bg-white border-2 border-purple-200 rounded-xl p-6 shadow-sm">
+                    <h4 className="font-bold text-purple-600 mb-3 text-lg">3. Visit Hospital</h4>
+                    <p className="text-gray-700">Show your token for quick check-in</p>
                   </div>
                 </div>
               </CardContent>
@@ -412,18 +459,21 @@ const EnhancedKiosk = () => {
         </Tabs>
       </main>
 
-      {/* Modern Footer */}
-      <footer className="bg-gradient-to-r from-blue-600 to-green-600 text-white p-6">
+      {/* Enhanced Professional Footer */}
+      <footer className="bg-gradient-to-r from-blue-600 via-blue-700 to-green-600 text-white p-8">
         <div className="max-w-7xl mx-auto text-center">
-          <p className="text-xl mb-4 font-semibold">
-            🤖 Powered by Google AI • 📱 WhatsApp Integration • 🎥 Camera Detection
+          <p className="text-2xl mb-6 font-bold">
+            🤖 Powered by Google AI • 📱 WhatsApp Integration • 🎥 Face Detection • 🗣️ Multi-Language Support
           </p>
-          <div className="flex flex-wrap justify-center gap-6 text-sm">
-            <span className="bg-white/20 px-4 py-2 rounded-full">"Find cardiology department"</span>
-            <span className="bg-white/20 px-4 py-2 rounded-full">"Book appointment with Dr. Kumar"</span>
-            <span className="bg-white/20 px-4 py-2 rounded-full">"Emergency directions"</span>
-            <span className="bg-white/20 px-4 py-2 rounded-full">"Visiting hours"</span>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <span className="bg-white/20 px-4 py-3 rounded-full">"Find cardiology department"</span>
+            <span className="bg-white/20 px-4 py-3 rounded-full">"Book appointment with Dr. Kumar"</span>
+            <span className="bg-white/20 px-4 py-3 rounded-full">"Emergency directions"</span>
+            <span className="bg-white/20 px-4 py-3 rounded-full">"Visiting hours"</span>
           </div>
+          <p className="mt-6 text-blue-100">
+            © 2024 MediCare Smart Kiosk • Advanced Healthcare Technology
+          </p>
         </div>
       </footer>
 
