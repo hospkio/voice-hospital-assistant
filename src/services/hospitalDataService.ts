@@ -86,7 +86,13 @@ class HospitalDataService {
       throw error;
     }
 
-    return data || [];
+    // Type assertion and transformation to ensure proper types
+    return (data || []).map(doctor => ({
+      ...doctor,
+      available_days: Array.isArray(doctor.available_days) ? doctor.available_days : [],
+      available_times: Array.isArray(doctor.available_times) ? doctor.available_times : [],
+      language_support: Array.isArray(doctor.language_support) ? doctor.language_support : []
+    })) as Doctor[];
   }
 
   async getDoctorsByDepartment(departmentName: string): Promise<Doctor[]> {
@@ -103,7 +109,13 @@ class HospitalDataService {
       throw error;
     }
 
-    return data || [];
+    // Type assertion and transformation to ensure proper types
+    return (data || []).map(doctor => ({
+      ...doctor,
+      available_days: Array.isArray(doctor.available_days) ? doctor.available_days : [],
+      available_times: Array.isArray(doctor.available_times) ? doctor.available_times : [],
+      language_support: Array.isArray(doctor.language_support) ? doctor.language_support : []
+    })) as Doctor[];
   }
 
   async getHospitalInfo(): Promise<HospitalInfo[]> {
@@ -117,7 +129,11 @@ class HospitalDataService {
       throw error;
     }
 
-    return data || [];
+    // Type assertion and transformation to ensure proper types
+    return (data || []).map(info => ({
+      ...info,
+      keywords: Array.isArray(info.keywords) ? info.keywords : []
+    })) as HospitalInfo[];
   }
 
   async searchHospitalInfo(query: string): Promise<HospitalInfo[]> {
@@ -131,7 +147,11 @@ class HospitalDataService {
       throw error;
     }
 
-    return data || [];
+    // Type assertion and transformation to ensure proper types
+    return (data || []).map(info => ({
+      ...info,
+      keywords: Array.isArray(info.keywords) ? info.keywords : []
+    })) as HospitalInfo[];
   }
 
   async getMultilingualResponse(intentName: string): Promise<MultilingualResponse | null> {
@@ -147,7 +167,13 @@ class HospitalDataService {
       throw error;
     }
 
-    return data;
+    if (!data) return null;
+
+    // Type assertion and transformation to ensure proper types
+    return {
+      ...data,
+      parameters: typeof data.parameters === 'object' && data.parameters !== null ? data.parameters : {}
+    } as MultilingualResponse;
   }
 
   async logKioskInteraction(interaction: {

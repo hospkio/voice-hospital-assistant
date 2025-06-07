@@ -22,7 +22,7 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
   const [isSupported, setIsSupported] = useState(false);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
-  const { speechToText, isProcessing } = useGoogleCloudServices();
+  const { speechToText, isLoading } = useGoogleCloudServices();
 
   useEffect(() => {
     // Check if browser supports media recording
@@ -57,11 +57,15 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
         const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm;codecs=opus' });
         
         // Process with Google Speech-to-Text
-        const result = await speechToText(audioBlob, language);
-        
-        if (result.success && result.transcript) {
-          onVoiceData(result.transcript, result.confidence, result.detectedLanguage);
-          setTranscript('');
+        try {
+          const result = await speechToText(audioBlob, language);
+          
+          if (result.transcript) {
+            onVoiceData(result.transcript, result.confidence, result.detectedLanguage);
+            setTranscript('');
+          }
+        } catch (error) {
+          console.error('Speech to text failed:', error);
         }
 
         // Stop all tracks
@@ -110,7 +114,7 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
       <div className="flex justify-center">
         <Button
           onClick={isListening ? stopListening : startListening}
-          disabled={isProcessing}
+          disabled={isLoading}
           size="lg"
           className={`h-20 w-20 rounded-full text-white transition-all duration-300 ${
             isListening 
@@ -118,7 +122,7 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
               : 'bg-blue-500 hover:bg-blue-600'
           }`}
         >
-          {isProcessing ? (
+          {isLoading ? (
             <Loader2 className="h-8 w-8 animate-spin" />
           ) : isListening ? (
             <Square className="h-8 w-8" />
@@ -131,12 +135,12 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
       {/* Status and Instructions */}
       <div className="text-center space-y-2">
         <p className={`text-lg font-semibold ${
-          isListening ? 'text-red-600' : isProcessing ? 'text-blue-600' : 'text-gray-700'
+          isListening ? 'text-red-600' : isLoading ? 'text-blue-600' : 'text-gray-700'
         }`}>
-          {isProcessing ? 'Processing...' : isListening ? 'Listening...' : 'Press to speak'}
+          {isLoading ? 'Processing...' : isListening ? 'Listening...' : 'Press to speak'}
         </p>
         
-        {!isListening && !isProcessing && (
+        {!isListening && !isLoading && (
           <p className="text-gray-500 text-sm">
             Click the microphone and speak clearly
           </p>
