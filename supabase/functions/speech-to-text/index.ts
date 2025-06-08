@@ -9,7 +9,7 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
@@ -26,28 +26,35 @@ serve(async (req) => {
       throw new Error('Google Cloud API key not configured');
     }
 
+    console.log('Processing audio file, size:', audioFile.size, 'language:', languageCode);
+
     // Convert audio file to base64
     const arrayBuffer = await audioFile.arrayBuffer();
     const base64Audio = btoa(String.fromCharCode(...new Uint8Array(arrayBuffer)));
 
-    // Configure for automatic language detection or specific language
+    // Enhanced configuration for better language detection
     const config = languageCode === 'auto' ? {
       encoding: 'WEBM_OPUS',
       sampleRateHertz: 48000,
       languageCode: 'en-US',
-      alternativeLanguageCodes: ['hi-IN', 'ml-IN', 'ta-IN', 'en-US'],
+      alternativeLanguageCodes: ['hi-IN', 'ml-IN', 'ta-IN', 'te-IN', 'kn-IN', 'mr-IN'],
       enableAutomaticPunctuation: true,
       model: 'latest_long',
       useEnhanced: true,
-      enableLanguageDetection: true
+      enableWordTimeOffsets: false,
+      enableWordConfidence: true,
+      maxAlternatives: 3
     } : {
       encoding: 'WEBM_OPUS',
       sampleRateHertz: 48000,
       languageCode: languageCode,
       enableAutomaticPunctuation: true,
       model: 'latest_long',
-      useEnhanced: true
+      useEnhanced: true,
+      enableWordConfidence: true
     };
+
+    console.log('Sending to Google Speech API with config:', config);
 
     const response = await fetch(`https://speech.googleapis.com/v1/speech:recognize?key=${googleApiKey}`, {
       method: 'POST',
@@ -62,36 +69,47 @@ serve(async (req) => {
       })
     });
 
-    const data = await response.json();
-    
     if (!response.ok) {
-      throw new Error(data.error?.message || 'Speech recognition failed');
+      const errorText = await response.text();
+      console.error('Google Speech API error:', errorText);
+      throw new Error(`Speech API error: ${response.status} - ${errorText}`);
     }
+
+    const data = await response.json();
+    console.log('Google Speech API response:', data);
 
     const result = data.results?.[0];
     const transcript = result?.alternatives?.[0]?.transcript || '';
     const confidence = result?.alternatives?.[0]?.confidence || 0;
     
-    // Detect language from the result
+    // Enhanced language detection
     let detectedLanguage = languageCode;
     if (languageCode === 'auto' && result?.languageCode) {
       detectedLanguage = result.languageCode;
-    } else if (data.results?.[0]?.alternatives?.[0]?.words?.[0]?.speakerTag) {
-      // Fallback language detection based on confidence scores
-      const alternatives = data.results?.[0]?.alternatives || [];
-      const languageConfidences = alternatives.reduce((acc: any, alt: any) => {
-        if (alt.languageCode && alt.confidence) {
-          acc[alt.languageCode] = Math.max(acc[alt.languageCode] || 0, alt.confidence);
+    }
+
+    // If no language detected from API, try to detect from content
+    if (detectedLanguage === 'auto' || detectedLanguage === 'en-US') {
+      if (transcript) {
+        // Simple pattern matching for Indian languages
+        const tamilPattern = /[\u0B80-\u0BFF]/;
+        const hindiPattern = /[\u0900-\u097F]/;
+        const malayalamPattern = /[\u0D00-\u0D7F]/;
+        const teluguPattern = /[\u0C00-\u0C7F]/;
+        
+        if (tamilPattern.test(transcript)) {
+          detectedLanguage = 'ta-IN';
+        } else if (hindiPattern.test(transcript)) {
+          detectedLanguage = 'hi-IN';
+        } else if (malayalamPattern.test(transcript)) {
+          detectedLanguage = 'ml-IN';
+        } else if (teluguPattern.test(transcript)) {
+          detectedLanguage = 'te-IN';
         }
-        return acc;
-      }, {});
-      
-      if (Object.keys(languageConfidences).length > 0) {
-        detectedLanguage = Object.keys(languageConfidences).reduce((a, b) => 
-          languageConfidences[a] > languageConfidences[b] ? a : b
-        );
       }
     }
+
+    console.log('Final result:', { transcript, confidence, detectedLanguage });
 
     return new Response(JSON.stringify({
       transcript,
@@ -106,6 +124,9 @@ serve(async (req) => {
     console.error('Speech-to-Text error:', error);
     return new Response(JSON.stringify({
       error: error.message,
+      transcript: '',
+      confidence: 0,
+      detectedLanguage: 'en-US',
       success: false
     }), {
       status: 500,

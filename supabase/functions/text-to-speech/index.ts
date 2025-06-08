@@ -9,57 +9,81 @@ const corsHeaders = {
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
+    return new Response('ok', { headers: corsHeaders });
   }
 
   try {
-    const { text, languageCode = 'en-US' } = await req.json();
+    const { text, languageCode = 'en-US', voiceName } = await req.json();
     const googleApiKey = Deno.env.get('GOOGLE_CLOUD_API_KEY');
 
     if (!googleApiKey) {
       throw new Error('Google Cloud API key not configured');
     }
 
-    // Map language codes to appropriate voices
+    if (!text || text.trim().length === 0) {
+      throw new Error('Text content is required');
+    }
+
+    console.log('TTS Request:', { languageCode, textLength: text.length });
+
+    // Enhanced voice mapping with better quality voices
     const voiceMap: { [key: string]: string } = {
-      'en-US': 'en-US-Studio-O',
-      'hi-IN': 'hi-IN-Standard-A',
-      'ml-IN': 'ml-IN-Standard-A',
-      'ta-IN': 'ta-IN-Standard-A'
+      'en-US': 'en-US-Studio-O',      // High quality neural voice
+      'hi-IN': 'hi-IN-Standard-A',    // Standard quality
+      'ml-IN': 'ml-IN-Standard-A',    // Standard quality  
+      'ta-IN': 'ta-IN-Standard-A',    // Standard quality
+      'te-IN': 'te-IN-Standard-A',    // Standard quality
+      'kn-IN': 'kn-IN-Standard-A',    // Standard quality
+      'mr-IN': 'mr-IN-Standard-A'     // Standard quality
     };
 
-    const voiceName = voiceMap[languageCode] || 'en-US-Studio-O';
+    const selectedVoice = voiceName || voiceMap[languageCode] || 'en-US-Studio-O';
+    console.log('Selected voice:', selectedVoice);
+
+    const requestBody = {
+      input: { text: text.substring(0, 5000) }, // Limit text length for performance
+      voice: {
+        languageCode,
+        name: selectedVoice,
+        ssmlGender: 'NEUTRAL'
+      },
+      audioConfig: {
+        audioEncoding: 'MP3',
+        speakingRate: 0.9,  // Slightly slower for clarity
+        pitch: 0.0,
+        volumeGainDb: 2.0,  // Slightly louder
+        effectsProfileId: ['handset-class-device'] // Optimize for mobile devices
+      }
+    };
+
+    console.log('Sending TTS request to Google Cloud...');
 
     const response = await fetch(`https://texttospeech.googleapis.com/v1/text:synthesize?key=${googleApiKey}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        input: { text },
-        voice: {
-          languageCode,
-          name: voiceName,
-          ssmlGender: 'NEUTRAL'
-        },
-        audioConfig: {
-          audioEncoding: 'MP3',
-          speakingRate: 0.9,
-          pitch: 0.0,
-          volumeGainDb: 0.0
-        }
-      })
+      body: JSON.stringify(requestBody)
     });
 
-    const data = await response.json();
-    
     if (!response.ok) {
-      throw new Error(data.error?.message || 'Text-to-speech failed');
+      const errorData = await response.json();
+      console.error('Google TTS API error:', errorData);
+      throw new Error(errorData.error?.message || `TTS API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    console.log('TTS response received successfully');
+    
+    if (!data.audioContent) {
+      throw new Error('No audio content received from Google TTS');
     }
 
     return new Response(JSON.stringify({
       audioContent: data.audioContent,
-      success: true
+      success: true,
+      voiceUsed: selectedVoice,
+      languageCode: languageCode
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
@@ -68,7 +92,8 @@ serve(async (req) => {
     console.error('Text-to-Speech error:', error);
     return new Response(JSON.stringify({
       error: error.message,
-      success: false
+      success: false,
+      audioContent: null
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
