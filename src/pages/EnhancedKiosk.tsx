@@ -1,5 +1,4 @@
-
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import KioskHeader from '@/components/KioskHeader';
 import KioskFooter from '@/components/KioskFooter';
 import MainKioskInterface from '@/components/MainKioskInterface';
@@ -17,6 +16,7 @@ const EnhancedKiosk = () => {
   const { processWithDialogflowCX } = useDialogflowCXService();
   const { textToSpeech, playAudio } = useGoogleCloudServices();
   const { startListening: detectLanguage } = useAutoLanguageDetection();
+  const greetingTriggeredRef = useRef(false);
 
   // Welcome message on load
   useEffect(() => {
@@ -36,6 +36,12 @@ const EnhancedKiosk = () => {
   }, [updateState]);
 
   const handleAutoGreeting = async () => {
+    if (greetingTriggeredRef.current) {
+      console.log('🚫 Auto-greeting already triggered, skipping');
+      return;
+    }
+
+    greetingTriggeredRef.current = true;
     console.log('🎯 Auto-greeting triggered by face detection');
     updateState({ isAutoDetecting: true });
     
@@ -50,7 +56,6 @@ const EnhancedKiosk = () => {
     try {
       console.log('🔊 Playing enhanced greeting with visual feedback');
       
-      // Enhanced toast notification
       toast({
         title: "👋 Welcome! Face Detected",
         description: "AI Assistant is now active and ready to help you. Please speak clearly.",
@@ -96,75 +101,45 @@ const EnhancedKiosk = () => {
         await playAudio(ttsResult.audioContent);
         console.log('🎉 Greeting audio completed successfully');
         
-        // Success feedback
         toast({
           title: "🎤 Voice Recognition Active",
           description: "You can now speak naturally. I'll detect your language automatically.",
           duration: 5000,
         });
         
-        // Start listening for user response after greeting
-        setTimeout(async () => {
-          try {
-            console.log('🎧 Starting automatic language detection...');
-            updateState({ isListening: true });
-            
-            const languageResult = await detectLanguage();
-            if (languageResult && languageResult.transcript && languageResult.transcript.trim()) {
-              console.log('🗣️ User responded:', languageResult);
-              
-              // Update language if different
-              if (languageResult.detectedLanguage !== state.selectedLanguage) {
-                updateState({ selectedLanguage: languageResult.detectedLanguage });
-                toast({
-                  title: "🌐 Language Detected",
-                  description: `Switched to ${languageResult.detectedLanguage}`,
-                  duration: 4000,
-                });
-              }
-              
-              await handleVoiceInput(languageResult.transcript, languageResult.confidence, languageResult.detectedLanguage);
-            } else {
-              console.log('👂 No immediate response - user can speak anytime');
-              toast({
-                title: "👂 Ready to Listen",
-                description: "No immediate response detected. Feel free to speak anytime!",
-                duration: 4000,
-              });
-            }
-          } catch (error) {
-            console.log('🤫 No speech detected during auto-listen phase (normal):', error);
-          } finally {
-            updateState({ isAutoDetecting: false, isListening: false });
-          }
-        }, 3000); // Give user time to process the greeting
+        // Reset greeting trigger after successful greeting
+        setTimeout(() => {
+          greetingTriggeredRef.current = false;
+          console.log('🔄 Greeting trigger reset - ready for next detection');
+        }, 30000);
         
       } else {
         console.error('❌ TTS failed:', ttsResult.error);
+        greetingTriggeredRef.current = false;
         toast({
           title: "⚠️ Audio Issue",
           description: "Face detected but audio playback failed. You can still use voice commands.",
           variant: "destructive",
         });
-        updateState({ isAutoDetecting: false });
       }
 
     } catch (error) {
       console.error('💥 Auto-greeting error:', error);
-      updateState({ isAutoDetecting: false });
+      greetingTriggeredRef.current = false;
       
       toast({
         title: "⚠️ System Error",
         description: "Face detected but greeting system failed. Please use voice commands manually.",
         variant: "destructive",
       });
+    } finally {
+      updateState({ isAutoDetecting: false });
     }
   };
 
   const handleVoiceInput = async (transcript: string, confidence: number, detectedLanguage: string) => {
     console.log('🎤 Processing voice input:', { transcript, confidence, detectedLanguage });
     
-    // Auto-switch language if detected differently
     if (detectedLanguage !== state.selectedLanguage) {
       updateState({ selectedLanguage: detectedLanguage });
       console.log('🌐 Language auto-switched to:', detectedLanguage);
@@ -176,7 +151,6 @@ const EnhancedKiosk = () => {
       });
     }
     
-    // Store session data
     await hospitalDataService.createOrUpdateKioskSession(state.sessionId, detectedLanguage);
     
     const newHistory = [...state.conversationHistory, {
@@ -187,16 +161,13 @@ const EnhancedKiosk = () => {
       confidence
     }];
 
-    // Process with Dialogflow CX
     console.log('🤖 Processing with Dialogflow CX...');
     const dialogflowResponse = await processWithDialogflowCX(transcript, state.sessionId, detectedLanguage);
     
-    // Handle appointment intents
     if (dialogflowResponse.intent?.toLowerCase().includes('appointment')) {
       updateState({ showAppointmentModal: true });
     }
     
-    // Handle department selection
     let selectedDepartment = state.selectedDepartment;
     if (dialogflowResponse.responseData?.department) {
       selectedDepartment = dialogflowResponse.responseData.department;
@@ -215,7 +186,6 @@ const EnhancedKiosk = () => {
       }]
     });
 
-    // Auto-play response
     try {
       console.log('🔊 Playing response audio...');
       const ttsResult = await textToSpeech(dialogflowResponse.responseText, detectedLanguage);
@@ -229,7 +199,6 @@ const EnhancedKiosk = () => {
       console.error('💥 Response audio playback failed:', error);
     }
 
-    // Success feedback
     toast({
       title: "🎤 Voice Processed Successfully",
       description: `Language: ${detectedLanguage} (${Math.round(confidence * 100)}% confidence)`,

@@ -1,5 +1,5 @@
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { Camera, CameraOff, Users, Eye, EyeOff, Sparkles, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -28,6 +28,7 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
 
   const [hasTriggeredGreeting, setHasTriggeredGreeting] = useState(false);
   const [greetingCooldown, setGreetingCooldown] = useState(false);
+  const previousDetectionRef = useRef(false);
 
   useEffect(() => {
     if (autoStart) {
@@ -42,26 +43,29 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
   useEffect(() => {
     onFaceDetected(facesDetected, faceCount);
     
-    if (facesDetected && !hasTriggeredGreeting && !greetingCooldown && onAutoGreetingTriggered) {
-      console.log('🎉 Face detected! Triggering auto-greeting...');
+    // Trigger greeting only on new face detection (transition from false to true)
+    if (facesDetected && !previousDetectionRef.current && !hasTriggeredGreeting && !greetingCooldown && onAutoGreetingTriggered) {
+      console.log('🎉 NEW FACE DETECTED! Triggering auto-greeting...');
       setHasTriggeredGreeting(true);
       setGreetingCooldown(true);
       
-      // Trigger greeting after stable detection
-      setTimeout(() => {
-        onAutoGreetingTriggered();
-      }, 1500);
+      // Trigger greeting immediately
+      onAutoGreetingTriggered();
       
       // Reset greeting trigger after 30 seconds
       setTimeout(() => {
         setHasTriggeredGreeting(false);
+        console.log('🔄 Greeting trigger reset');
       }, 30000);
       
-      // Cooldown period of 5 seconds
+      // Cooldown period of 10 seconds
       setTimeout(() => {
         setGreetingCooldown(false);
-      }, 5000);
+        console.log('🟢 Greeting cooldown ended');
+      }, 10000);
     }
+    
+    previousDetectionRef.current = facesDetected;
   }, [facesDetected, faceCount, onFaceDetected, hasTriggeredGreeting, greetingCooldown, onAutoGreetingTriggered]);
 
   return (
