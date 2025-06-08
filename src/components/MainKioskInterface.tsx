@@ -1,4 +1,3 @@
-
 import React from 'react';
 import { Volume2, Camera, MessageCircle, Calendar } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -21,6 +20,7 @@ interface MainKioskInterfaceProps {
   onQuickAction: (query: string) => void;
   onDepartmentSelect: (department: string) => void;
   onShowAppointmentModal: () => void;
+  onAutoGreetingTriggered: () => void;
 }
 
 const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
@@ -31,7 +31,8 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
   onFaceDetected,
   onQuickAction,
   onDepartmentSelect,
-  onShowAppointmentModal
+  onShowAppointmentModal,
+  onAutoGreetingTriggered
 }) => {
   return (
     <main className="flex-1 max-w-7xl mx-auto w-full p-6">
@@ -69,6 +70,7 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
               <EnhancedFaceDetectionCamera 
                 onFaceDetected={onFaceDetected}
                 autoStart={state.autoInteractionEnabled}
+                onAutoGreetingTriggered={onAutoGreetingTriggered}
               />
             </div>
 

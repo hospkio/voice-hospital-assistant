@@ -15,19 +15,18 @@ const EnhancedResponseDisplay: React.FC<EnhancedResponseDisplayProps> = ({ respo
   const [isPlaying, setIsPlaying] = useState(false);
   const { textToSpeech, playAudio } = useGoogleCloudServices();
 
-  useEffect(() => {
-    if (response?.responseText) {
-      // Auto-play text-to-speech
-      handleSpeakText(response.responseText);
-    }
-  }, [response]);
-
   const handleSpeakText = async (text: string) => {
+    if (isPlaying) return;
+    
     setIsPlaying(true);
     try {
+      console.log('Speaking text:', text, 'in language:', language);
       const ttsResult = await textToSpeech(text, language);
-      if (ttsResult.success) {
+      if (ttsResult.success && ttsResult.audioContent) {
         await playAudio(ttsResult.audioContent);
+        console.log('Audio played successfully');
+      } else {
+        console.error('TTS failed:', ttsResult.error);
       }
     } catch (error) {
       console.error('Speech playback error:', error);

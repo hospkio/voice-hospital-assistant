@@ -18,17 +18,6 @@ const EnhancedKiosk = () => {
   const { textToSpeech, playAudio } = useGoogleCloudServices();
   const { startListening: detectLanguage } = useAutoLanguageDetection();
 
-  // Auto-greeting when faces are detected
-  useEffect(() => {
-    if (state.facesDetected && state.autoInteractionEnabled && !state.isAutoDetecting) {
-      const now = Date.now();
-      if (now - state.lastGreetingTime > 15000) {
-        handleAutoGreeting();
-        updateState({ lastGreetingTime: now });
-      }
-    }
-  }, [state.facesDetected, state.autoInteractionEnabled]);
-
   // Welcome message on load
   useEffect(() => {
     const welcomeMessage = {
@@ -44,6 +33,7 @@ const EnhancedKiosk = () => {
   }, []);
 
   const handleAutoGreeting = async () => {
+    console.log('Auto-greeting triggered by face detection');
     updateState({ isAutoDetecting: true });
     
     const greetings = {
@@ -54,9 +44,12 @@ const EnhancedKiosk = () => {
     };
 
     try {
+      console.log('Playing greeting and showing toast');
+      
       toast({
         title: "👋 Face detected!",
-        description: "Please speak to start. I'll detect your language automatically.",
+        description: "Welcome! I'm ready to help you. Please speak to start.",
+        duration: 4000,
       });
 
       const greeting = greetings[state.selectedLanguage] || greetings['en-US'];
@@ -80,31 +73,48 @@ const EnhancedKiosk = () => {
           intent: 'auto-greeting',
           confidence: 1.0,
           trigger: 'face-detection'
-        }]
+        }],
+        lastGreetingTime: Date.now()
       });
 
+      console.log('Attempting to play greeting audio');
       const ttsResult = await textToSpeech(greeting, state.selectedLanguage);
-      if (ttsResult.success) {
+      if (ttsResult.success && ttsResult.audioContent) {
+        console.log('Playing greeting audio');
         await playAudio(ttsResult.audioContent);
+        console.log('Greeting audio played successfully');
+      } else {
+        console.error('TTS failed:', ttsResult.error);
       }
 
+      // Wait a moment then start listening for user response
       setTimeout(async () => {
         try {
+          console.log('Starting automatic language detection');
+          updateState({ isListening: true });
+          
           const languageResult = await detectLanguage();
-          if (languageResult) {
+          if (languageResult && languageResult.transcript) {
+            console.log('Detected speech:', languageResult);
             updateState({ selectedLanguage: languageResult.detectedLanguage });
             await handleVoiceInput(languageResult.transcript, languageResult.confidence, languageResult.detectedLanguage);
           }
         } catch (error) {
-          console.log('No speech detected during auto-detection phase');
+          console.log('No speech detected during auto-detection phase:', error);
         } finally {
-          updateState({ isAutoDetecting: false });
+          updateState({ isAutoDetecting: false, isListening: false });
         }
-      }, 2000);
+      }, 3000);
 
     } catch (error) {
       console.error('Auto-greeting error:', error);
       updateState({ isAutoDetecting: false });
+      
+      toast({
+        title: "⚠️ Audio Error",
+        description: "Face detected but audio playback failed. Please check your speakers.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -113,6 +123,7 @@ const EnhancedKiosk = () => {
     
     if (detectedLanguage !== state.selectedLanguage) {
       updateState({ selectedLanguage: detectedLanguage });
+      console.log('Language switched to:', detectedLanguage);
     }
     
     await hospitalDataService.createOrUpdateKioskSession(state.sessionId, detectedLanguage);
@@ -147,6 +158,16 @@ const EnhancedKiosk = () => {
         confidence: dialogflowResponse.confidence
       }]
     });
+
+    // Auto-play response
+    try {
+      const ttsResult = await textToSpeech(dialogflowResponse.responseText, detectedLanguage);
+      if (ttsResult.success && ttsResult.audioContent) {
+        await playAudio(ttsResult.audioContent);
+      }
+    } catch (error) {
+      console.error('Response audio playback failed:', error);
+    }
 
     toast({
       title: "🎤 Voice processed",
@@ -189,6 +210,7 @@ const EnhancedKiosk = () => {
         onQuickAction={handleQuickAction}
         onDepartmentSelect={handleDepartmentSelect}
         onShowAppointmentModal={() => updateState({ showAppointmentModal: true })}
+        onAutoGreetingTriggered={handleAutoGreeting}
       />
 
       <KioskFooter />

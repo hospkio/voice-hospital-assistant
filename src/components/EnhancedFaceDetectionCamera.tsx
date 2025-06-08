@@ -8,11 +8,13 @@ import { useFaceDetection } from '@/hooks/useFaceDetection';
 interface EnhancedFaceDetectionCameraProps {
   onFaceDetected: (detected: boolean, count: number) => void;
   autoStart?: boolean;
+  onAutoGreetingTriggered?: () => void;
 }
 
 const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = ({ 
   onFaceDetected, 
-  autoStart = true 
+  autoStart = true,
+  onAutoGreetingTriggered
 }) => {
   const { 
     videoRef, 
@@ -25,6 +27,7 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
   } = useFaceDetection();
 
   const [lastDetectionTime, setLastDetectionTime] = useState(0);
+  const [hasTriggeredGreeting, setHasTriggeredGreeting] = useState(false);
 
   useEffect(() => {
     if (autoStart) {
@@ -40,9 +43,28 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
     onFaceDetected(facesDetected, faceCount);
     
     if (facesDetected) {
-      setLastDetectionTime(Date.now());
+      const now = Date.now();
+      setLastDetectionTime(now);
+      
+      // Trigger auto-greeting if faces detected and not already triggered recently
+      if (!hasTriggeredGreeting && onAutoGreetingTriggered) {
+        setHasTriggeredGreeting(true);
+        setTimeout(() => {
+          onAutoGreetingTriggered();
+        }, 1000); // Small delay to ensure camera is stable
+        
+        // Reset greeting trigger after 30 seconds
+        setTimeout(() => {
+          setHasTriggeredGreeting(false);
+        }, 30000);
+      }
+    } else {
+      // Reset greeting trigger when no faces detected for 5 seconds
+      if (hasTriggeredGreeting && Date.now() - lastDetectionTime > 5000) {
+        setHasTriggeredGreeting(false);
+      }
     }
-  }, [facesDetected, faceCount, onFaceDetected]);
+  }, [facesDetected, faceCount, onFaceDetected, hasTriggeredGreeting, onAutoGreetingTriggered, lastDetectionTime]);
 
   return (
     <Card className="w-full border-2 border-blue-200 shadow-xl">
