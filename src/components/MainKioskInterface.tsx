@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Volume2, Camera, MessageCircle, Calendar, Sparkles } from 'lucide-react';
+import { Volume2, Camera, MessageCircle, Calendar, Sparkles, Map, Building2, Stethoscope } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -36,71 +36,109 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
   onAutoGreetingTriggered
 }) => {
   return (
-    <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6">
-      {/* Welcome Banner for First-Time Users */}
+    <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 space-y-6">
+      {/* Hero Welcome Banner */}
       {!state.facesDetected && !state.currentResponse && (
-        <div className="mb-6 bg-gradient-to-r from-blue-500 via-purple-500 to-green-500 p-1 rounded-2xl shadow-2xl">
-          <div className="bg-white rounded-xl p-6 md:p-8 text-center">
-            <div className="flex items-center justify-center space-x-3 mb-4">
-              <Sparkles className="h-8 w-8 md:h-10 md:w-10 text-purple-500" />
-              <h2 className="text-2xl md:text-4xl font-bold bg-gradient-to-r from-blue-600 to-green-600 bg-clip-text text-transparent">
+        <div className="relative overflow-hidden bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 p-1 rounded-3xl shadow-2xl">
+          <div className="bg-white rounded-2xl p-8 md:p-12 text-center relative">
+            <div className="absolute top-4 right-4 text-6xl opacity-20">🏥</div>
+            <div className="flex items-center justify-center space-x-4 mb-6">
+              <Sparkles className="h-12 w-12 text-purple-500 animate-pulse" />
+              <h2 className="text-3xl md:text-5xl font-bold bg-gradient-to-r from-blue-600 via-purple-600 to-green-600 bg-clip-text text-transparent">
                 Welcome to MediCare Smart Kiosk
               </h2>
-              <Sparkles className="h-8 w-8 md:h-10 md:w-10 text-purple-500" />
+              <Sparkles className="h-12 w-12 text-purple-500 animate-pulse" />
             </div>
-            <p className="text-lg md:text-xl text-gray-700 mb-4">
+            
+            <p className="text-xl md:text-2xl text-gray-700 mb-8 font-medium">
               🤖 Your Intelligent Healthcare Assistant with AI-Powered Voice Recognition
             </p>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm md:text-base">
-              <div className="bg-blue-50 p-4 rounded-xl border border-blue-200">
-                <span className="text-2xl mb-2 block">🎯</span>
-                <p className="font-semibold text-blue-800">Smart Detection</p>
-                <p className="text-blue-600 text-sm">Automatically detects when you approach</p>
+            
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 p-6 rounded-2xl border-2 border-blue-200 hover:shadow-lg transition-all">
+                <div className="text-4xl mb-4">🎯</div>
+                <h3 className="text-xl font-bold text-blue-800 mb-2">Smart Detection</h3>
+                <p className="text-blue-600">Automatically detects when you approach and starts conversation</p>
               </div>
-              <div className="bg-green-50 p-4 rounded-xl border border-green-200">
-                <span className="text-2xl mb-2 block">🗣️</span>
-                <p className="font-semibold text-green-800">Multi-Language</p>
-                <p className="text-green-600 text-sm">Speaks your language automatically</p>
+              
+              <div className="bg-gradient-to-br from-green-50 to-green-100 p-6 rounded-2xl border-2 border-green-200 hover:shadow-lg transition-all">
+                <div className="text-4xl mb-4">🗣️</div>
+                <h3 className="text-xl font-bold text-green-800 mb-2">Multi-Language</h3>
+                <p className="text-green-600">Speaks your language automatically - English, Hindi, Tamil & more</p>
               </div>
-              <div className="bg-purple-50 p-4 rounded-xl border border-purple-200">
-                <span className="text-2xl mb-2 block">🏥</span>
-                <p className="font-semibold text-purple-800">Complete Help</p>
-                <p className="text-purple-600 text-sm">Directions, appointments & more</p>
+              
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 p-6 rounded-2xl border-2 border-purple-200 hover:shadow-lg transition-all">
+                <div className="text-4xl mb-4">🏥</div>
+                <h3 className="text-xl font-bold text-purple-800 mb-2">Complete Help</h3>
+                <p className="text-purple-600">Directions, appointments, department info & emergency assistance</p>
               </div>
             </div>
           </div>
         </div>
       )}
 
+      {/* Modern Tab Interface */}
       <Tabs defaultValue="assistant" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-16 md:h-14 text-base md:text-lg bg-gradient-to-r from-blue-100 to-green-100">
-          <TabsTrigger value="assistant" className="h-14 md:h-12 font-semibold">
-            🤖 AI Assistant
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-20 bg-gradient-to-r from-blue-100 via-purple-100 to-green-100 rounded-2xl p-2 shadow-lg">
+          <TabsTrigger 
+            value="assistant" 
+            className="h-16 rounded-xl font-bold text-lg bg-white/50 hover:bg-white data-[state=active]:bg-white data-[state=active]:shadow-lg transition-all"
+          >
+            <div className="flex flex-col items-center space-y-1">
+              <Volume2 className="h-6 w-6" />
+              <span>AI Assistant</span>
+            </div>
           </TabsTrigger>
-          <TabsTrigger value="map" className="h-14 md:h-12 font-semibold">
-            🗺️ Floor Map
+          
+          <TabsTrigger 
+            value="map" 
+            className="h-16 rounded-xl font-bold text-lg bg-white/50 hover:bg-white data-[state=active]:bg-white data-[state=active]:shadow-lg transition-all"
+          >
+            <div className="flex flex-col items-center space-y-1">
+              <Map className="h-6 w-6" />
+              <span>Floor Map</span>
+            </div>
           </TabsTrigger>
-          <TabsTrigger value="departments" className="h-14 md:h-12 font-semibold">
-            🏥 Departments
+          
+          <TabsTrigger 
+            value="departments" 
+            className="h-16 rounded-xl font-bold text-lg bg-white/50 hover:bg-white data-[state=active]:bg-white data-[state=active]:shadow-lg transition-all"
+          >
+            <div className="flex flex-col items-center space-y-1">
+              <Building2 className="h-6 w-6" />
+              <span>Departments</span>
+            </div>
           </TabsTrigger>
-          <TabsTrigger value="appointments" className="h-14 md:h-12 font-semibold">
-            📅 Appointments
+          
+          <TabsTrigger 
+            value="appointments" 
+            className="h-16 rounded-xl font-bold text-lg bg-white/50 hover:bg-white data-[state=active]:bg-white data-[state=active]:shadow-lg transition-all"
+          >
+            <div className="flex flex-col items-center space-y-1">
+              <Calendar className="h-6 w-6" />
+              <span>Appointments</span>
+            </div>
           </TabsTrigger>
         </TabsList>
 
+        {/* AI Assistant Tab */}
         <TabsContent value="assistant" className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Main Interaction Panel */}
           <div className="xl:col-span-2 space-y-6">
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Voice Assistant Card */}
-              <Card className="border-2 border-blue-200 shadow-xl bg-gradient-to-br from-blue-50 to-blue-100">
-                <CardHeader className="bg-gradient-to-r from-blue-500 to-blue-600 text-white rounded-t-lg">
+              <Card className="border-0 shadow-2xl bg-gradient-to-br from-blue-50 to-purple-50 overflow-hidden">
+                <CardHeader className="bg-gradient-to-r from-blue-500 via-purple-500 to-blue-600 text-white">
                   <CardTitle className="flex items-center space-x-3">
-                    <Volume2 className="h-6 w-6 md:h-7 md:w-7" />
-                    <span className="text-lg md:text-xl">🎤 Voice Assistant</span>
+                    <div className="p-2 bg-white/20 rounded-xl">
+                      <Volume2 className="h-7 w-7" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold">Voice Assistant</h3>
+                      <p className="text-blue-100 text-sm">AI-Powered Speech Recognition</p>
+                    </div>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="p-4 md:p-6">
+                <CardContent className="p-6">
                   <EnhancedVoiceRecorder 
                     isListening={isListening}
                     onVoiceData={onVoiceData}
@@ -125,7 +163,7 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
             />
           </div>
 
-          {/* Enhanced Control Panel */}
+          {/* Control Panel */}
           <div className="space-y-6">
             <QuickActionsPanel onQuickAction={onQuickAction} />
             <SessionStatusPanel 
@@ -139,70 +177,98 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
           </div>
         </TabsContent>
 
-        <TabsContent value="map">
+        {/* Floor Map Tab */}
+        <TabsContent value="map" className="space-y-6">
+          <div className="bg-gradient-to-r from-blue-100 to-green-100 p-6 rounded-2xl border-2 border-blue-200">
+            <div className="flex items-center space-x-3 mb-4">
+              <Map className="h-8 w-8 text-blue-600" />
+              <h3 className="text-2xl font-bold text-blue-800">Interactive Hospital Map</h3>
+            </div>
+            <p className="text-blue-600 text-lg">Navigate easily through our hospital with real-time directions</p>
+          </div>
           <HospitalFloorMap 
             targetDepartment={state.selectedDepartment}
             onDepartmentSelect={(dept) => onDepartmentSelect(dept.name)}
           />
         </TabsContent>
 
-        <TabsContent value="departments">
+        {/* Departments Tab */}
+        <TabsContent value="departments" className="space-y-6">
+          <div className="bg-gradient-to-r from-green-100 to-blue-100 p-6 rounded-2xl border-2 border-green-200">
+            <div className="flex items-center space-x-3 mb-4">
+              <Stethoscope className="h-8 w-8 text-green-600" />
+              <h3 className="text-2xl font-bold text-green-800">Medical Departments</h3>
+            </div>
+            <p className="text-green-600 text-lg">Explore our specialized medical departments and services</p>
+          </div>
           <HospitalDataDisplay 
             selectedDepartment={state.selectedDepartment}
             onDepartmentSelect={onDepartmentSelect}
           />
         </TabsContent>
 
+        {/* Appointments Tab */}
         <TabsContent value="appointments">
-          <Card className="shadow-2xl border-2 border-green-200 bg-gradient-to-br from-green-50 to-blue-50">
-            <CardHeader className="bg-gradient-to-r from-green-500 to-blue-500 text-white rounded-t-lg">
+          <Card className="shadow-2xl border-0 bg-gradient-to-br from-green-50 via-white to-blue-50 overflow-hidden">
+            <CardHeader className="bg-gradient-to-r from-green-500 via-blue-500 to-purple-500 text-white">
               <CardTitle className="flex items-center space-x-3">
-                <MessageCircle className="h-6 w-6 md:h-7 md:w-7" />
-                <span className="text-lg md:text-xl">📱 WhatsApp Appointment Booking</span>
+                <div className="p-2 bg-white/20 rounded-xl">
+                  <MessageCircle className="h-7 w-7" />
+                </div>
+                <div>
+                  <h3 className="text-2xl font-bold">WhatsApp Appointment Booking</h3>
+                  <p className="text-green-100">Quick, Easy & Instant Confirmations</p>
+                </div>
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-center space-y-6 p-6 md:p-8">
-              <div className="bg-gradient-to-r from-green-100 to-blue-100 border-2 border-green-300 rounded-2xl p-6 md:p-8">
-                <div className="text-4xl md:text-6xl mb-4">📱</div>
-                <h3 className="text-2xl md:text-3xl font-bold text-green-800 mb-4">
+            
+            <CardContent className="text-center space-y-8 p-8">
+              <div className="bg-gradient-to-r from-green-100 via-blue-100 to-purple-100 border-2 border-green-300 rounded-3xl p-8">
+                <div className="text-6xl mb-6 animate-bounce">📱</div>
+                <h3 className="text-3xl font-bold text-green-800 mb-4">
                   Book via WhatsApp
                 </h3>
-                <p className="text-green-700 mb-6 text-lg md:text-xl">
+                <p className="text-green-700 mb-8 text-xl">
                   Get instant appointment confirmations sent directly to your WhatsApp!
                 </p>
+                
                 <Button 
                   onClick={onShowAppointmentModal}
-                  className="bg-gradient-to-r from-green-600 to-blue-600 hover:from-green-700 hover:to-blue-700 h-16 md:h-18 px-8 text-lg md:text-xl shadow-lg hover:shadow-xl transition-all duration-300"
+                  className="bg-gradient-to-r from-green-600 via-blue-600 to-purple-600 hover:from-green-700 hover:via-blue-700 hover:to-purple-700 h-20 px-12 text-2xl font-bold shadow-2xl hover:shadow-3xl transition-all duration-300 rounded-2xl"
                   size="lg"
                 >
-                  <Calendar className="h-6 w-6 md:h-7 md:w-7 mr-3" />
+                  <Calendar className="h-8 w-8 mr-4" />
                   📅 Book Appointment Now
                 </Button>
               </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 text-sm md:text-base">
-                <div className="bg-white border-2 border-blue-200 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
-                  <div className="text-3xl md:text-4xl mb-3">1️⃣</div>
-                  <h4 className="font-bold text-blue-600 mb-3 text-lg md:text-xl">Book Online</h4>
-                  <p className="text-gray-700">Fill in your details and preferred time slot</p>
+              {/* Process Steps */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white border-2 border-blue-200 rounded-3xl p-8 shadow-lg hover:shadow-2xl transition-all hover:scale-105">
+                  <div className="text-5xl mb-4">1️⃣</div>
+                  <h4 className="font-bold text-blue-600 mb-4 text-2xl">Book Online</h4>
+                  <p className="text-gray-700 text-lg">Fill in your details and preferred time slot easily</p>
                 </div>
-                <div className="bg-white border-2 border-green-200 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
-                  <div className="text-3xl md:text-4xl mb-3">2️⃣</div>
-                  <h4 className="font-bold text-green-600 mb-3 text-lg md:text-xl">Get Token</h4>
-                  <p className="text-gray-700">Receive token number via WhatsApp instantly</p>
+                
+                <div className="bg-white border-2 border-green-200 rounded-3xl p-8 shadow-lg hover:shadow-2xl transition-all hover:scale-105">
+                  <div className="text-5xl mb-4">2️⃣</div>
+                  <h4 className="font-bold text-green-600 mb-4 text-2xl">Get Token</h4>
+                  <p className="text-gray-700 text-lg">Receive token number via WhatsApp instantly</p>
                 </div>
-                <div className="bg-white border-2 border-purple-200 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-shadow">
-                  <div className="text-3xl md:text-4xl mb-3">3️⃣</div>
-                  <h4 className="font-bold text-purple-600 mb-3 text-lg md:text-xl">Visit Hospital</h4>
-                  <p className="text-gray-700">Show your token for quick check-in</p>
+                
+                <div className="bg-white border-2 border-purple-200 rounded-3xl p-8 shadow-lg hover:shadow-2xl transition-all hover:scale-105">
+                  <div className="text-5xl mb-4">3️⃣</div>
+                  <h4 className="font-bold text-purple-600 mb-4 text-2xl">Visit Hospital</h4>
+                  <p className="text-gray-700 text-lg">Show your token for quick check-in</p>
                 </div>
               </div>
 
-              {/* Additional Help for Elderly */}
-              <div className="bg-yellow-50 border-2 border-yellow-300 rounded-2xl p-6 mt-6">
-                <h4 className="font-bold text-yellow-800 text-lg md:text-xl mb-3">👴👵 Need Help?</h4>
-                <p className="text-yellow-700 text-base md:text-lg">
-                  Hospital staff are available to assist with appointments. Just ask at the front desk!
+              {/* Elderly Help Section */}
+              <div className="bg-gradient-to-r from-yellow-100 to-orange-100 border-2 border-yellow-300 rounded-3xl p-8">
+                <h4 className="font-bold text-yellow-800 text-2xl mb-4">👴👵 Need Help?</h4>
+                <p className="text-yellow-700 text-xl leading-relaxed">
+                  Our friendly hospital staff are always available to assist with appointments and any questions. 
+                  Just ask at the front desk or speak to our AI assistant!
                 </p>
               </div>
             </CardContent>

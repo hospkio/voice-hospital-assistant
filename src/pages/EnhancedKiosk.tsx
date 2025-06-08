@@ -18,7 +18,7 @@ const EnhancedKiosk = () => {
   const { textToSpeech, playAudio } = useGoogleCloudServices();
   const { startListening: detectLanguage } = useAutoLanguageDetection();
 
-  // Enhanced welcome message on load
+  // Welcome message on load
   useEffect(() => {
     const welcomeMessage = {
       responseText: "🌟 Welcome to MediCare Smart Kiosk! Your intelligent healthcare assistant powered by advanced AI and voice recognition technology. I can help you with hospital directions, appointment bookings, department information, and much more - all in multiple languages including English, Hindi, Tamil, Malayalam, Telugu, and more!",
@@ -33,7 +33,7 @@ const EnhancedKiosk = () => {
       success: true
     };
     updateState({ currentResponse: welcomeMessage });
-  }, []);
+  }, [updateState]);
 
   const handleAutoGreeting = async () => {
     console.log('🎯 Auto-greeting triggered by face detection');
@@ -42,19 +42,19 @@ const EnhancedKiosk = () => {
     const enhancedGreetings = {
       'en-US': "Hello and welcome to MediCare Hospital! I'm your intelligent AI assistant, here to help you with directions, appointments, and hospital information. I can understand and respond in multiple languages. How may I assist you today?",
       'ta-IN': "வணக்கம்! மெடிகேர் மருத்துவமனைக்கு வரவேற்கிறோம்! நான் உங்கள் புத்திசாலி AI உதவியாளர். திசைகள், அப்பாயிண்ட்மென்ட்கள், மற்றும் மருத்துவமனை தகவல்களுக்கு நான் உங்களுக்கு உதவ முடியும். பல மொழிகளில் பேசி புரிந்துகொள்ள முடியும். இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்?",
-      'ml-IN': "നമസ്കാരം! മെഡികെയർ ഹോസ്പിറ്റലിലേക്ക് സ്വാഗതം! ഞാൻ നിങ്ങളുടെ ബുദ്ധിമാനായ AI അസിസ്റ്റന്റാണ്. ദിശകൾ, അപ്പോയിന്റ്മെന്റുകൾ, ആശുപത്രി വിവരങ്ങൾ എന്നിവയിൽ സഹായിക്കാൻ ഞാൻ ഇവിടെയുണ്ട്. പല ഭാഷകളിലും സംസാരിക്കാനും മനസ്സിലാക്കാനും കഴിയും. ഇന്ന് എനിക്ക് നിങ്ങളെ എങ്ങനെ സഹായിക്കാം?",
+      'ml-IN': "നമസ്കാരം! മെഡികെയർ ഹോസ്പിറ്റലിലേക്ക് സ്വാഗതം! ഞാൻ നിങ്ങളുടെ ബുദ്ധിമാനായ AI അസിസ്റ്റന്റാണ്. ദിശകൾ, അപ്പോയിന്റ്മെന്റുകൾ, ആശുപത്രി വിവരങ്ങൾ എന്നിവയിൽ സഹായിക്കാൻ ഞാൻ ഇവിടെയുണ്ട്. പല ഭാഷകളിലും സംസാരിക്കാനും മനസ്സിലാക്കാനും കഴിയും। ഇന്ന് എനിക്ക് നിങ്ങളെ എങ്ങനെ സഹായിക്കാം?",
       'hi-IN': "नमस्ते! मेडिकेयर अस्पताल में आपका स्वागत है! मैं आपका बुद्धिमान AI सहायक हूं। दिशा-निर्देश, अपॉइंटमेंट, और अस्पताल की जानकारी के लिए मैं यहां हूं। कई भाषाओं में बात कर सकता और समझ सकता हूं। आज मैं आपकी कैसे सहायता कर सकता हूं?",
-      'te-IN': "నమస్కారం! మెడికేర్ హాస్పిటల్‌కు స్వాగతం! నేను మీ తెలివైన AI సహాయకుడను. దిశలు, అపాయింట్‌మెంట్లు, మరియు హాస్పిటల్ సమాచారం కోసం నేను ఇక్కడ ఉన్నాను. అనేక భాషలలో మాట్లాడగలను మరియు అర్థం చేసుకోగలను. ఈరోజు నేను మీకు ఎలా సహాయం చేయగలను?"
+      'te-IN': "నమస్కారం! మెడికేర్ హాస్పిటల్‌కు స్వాగతం! నేను మీ తెలివైన AI సహాయకుడను। దిశలు, అపాయింట్‌మెంట్లు, మరియు హాస్పిటల్ సమాచారం కోసం నేను ఇక్కడ ఉన్నాను। అనేక భాషలలో మాట్లాడగలను మరియు అర్థం చేసుకోగలను। ఈరోజు నేను మీకు ఎలా సహాయం చేయగలను?"
     };
 
     try {
-      console.log('🔊 Playing enhanced greeting with toast notification');
+      console.log('🔊 Playing enhanced greeting with visual feedback');
       
       // Enhanced toast notification
       toast({
         title: "👋 Welcome! Face Detected",
         description: "AI Assistant is now active and ready to help you. Please speak clearly.",
-        duration: 6000,
+        duration: 8000,
       });
 
       const greeting = enhancedGreetings[state.selectedLanguage] || enhancedGreetings['en-US'];
@@ -88,67 +88,66 @@ const EnhancedKiosk = () => {
         lastGreetingTime: Date.now()
       });
 
-      console.log('🎵 Attempting to play greeting audio with enhanced error handling');
+      console.log('🎵 Starting TTS for greeting...');
       const ttsResult = await textToSpeech(greeting, state.selectedLanguage);
+      
       if (ttsResult.success && ttsResult.audioContent) {
-        console.log('✅ Playing greeting audio successfully');
+        console.log('✅ Playing greeting audio...');
         await playAudio(ttsResult.audioContent);
-        console.log('🎉 Greeting audio played successfully');
+        console.log('🎉 Greeting audio completed successfully');
         
-        // Additional success toast
-        setTimeout(() => {
-          toast({
-            title: "🎤 Voice Recognition Active",
-            description: "You can now speak naturally. I'll detect your language automatically.",
-            duration: 4000,
-          });
-        }, 3000);
+        // Success feedback
+        toast({
+          title: "🎤 Voice Recognition Active",
+          description: "You can now speak naturally. I'll detect your language automatically.",
+          duration: 5000,
+        });
+        
+        // Start listening for user response after greeting
+        setTimeout(async () => {
+          try {
+            console.log('🎧 Starting automatic language detection...');
+            updateState({ isListening: true });
+            
+            const languageResult = await detectLanguage();
+            if (languageResult && languageResult.transcript && languageResult.transcript.trim()) {
+              console.log('🗣️ User responded:', languageResult);
+              
+              // Update language if different
+              if (languageResult.detectedLanguage !== state.selectedLanguage) {
+                updateState({ selectedLanguage: languageResult.detectedLanguage });
+                toast({
+                  title: "🌐 Language Detected",
+                  description: `Switched to ${languageResult.detectedLanguage}`,
+                  duration: 4000,
+                });
+              }
+              
+              await handleVoiceInput(languageResult.transcript, languageResult.confidence, languageResult.detectedLanguage);
+            } else {
+              console.log('👂 No immediate response - user can speak anytime');
+              toast({
+                title: "👂 Ready to Listen",
+                description: "No immediate response detected. Feel free to speak anytime!",
+                duration: 4000,
+              });
+            }
+          } catch (error) {
+            console.log('🤫 No speech detected during auto-listen phase (normal):', error);
+          } finally {
+            updateState({ isAutoDetecting: false, isListening: false });
+          }
+        }, 3000); // Give user time to process the greeting
         
       } else {
         console.error('❌ TTS failed:', ttsResult.error);
         toast({
-          title: "⚠️ Audio Unavailable",
+          title: "⚠️ Audio Issue",
           description: "Face detected but audio playback failed. You can still use voice commands.",
           variant: "destructive",
         });
+        updateState({ isAutoDetecting: false });
       }
-
-      // Enhanced auto-detection with better timing
-      setTimeout(async () => {
-        try {
-          console.log('🎧 Starting automatic language detection after greeting');
-          updateState({ isListening: true });
-          
-          // Give user more time to respond (8 seconds instead of 5)
-          const languageResult = await detectLanguage();
-          if (languageResult && languageResult.transcript && languageResult.transcript.trim()) {
-            console.log('🗣️ Detected speech:', languageResult);
-            
-            // Update language if different
-            if (languageResult.detectedLanguage !== state.selectedLanguage) {
-              updateState({ selectedLanguage: languageResult.detectedLanguage });
-              toast({
-                title: "🌐 Language Detected",
-                description: `Switched to ${languageResult.detectedLanguage}`,
-                duration: 3000,
-              });
-            }
-            
-            await handleVoiceInput(languageResult.transcript, languageResult.confidence, languageResult.detectedLanguage);
-          } else {
-            console.log('😴 No speech detected during auto-detection phase - that\'s okay');
-            toast({
-              title: "👂 Listening Complete",
-              description: "No speech detected. Feel free to speak anytime or use the microphone button.",
-              duration: 3000,
-            });
-          }
-        } catch (error) {
-          console.log('🤫 No speech detected during auto-detection phase (normal behavior):', error);
-        } finally {
-          updateState({ isAutoDetecting: false, isListening: false });
-        }
-      }, 4000); // Increased delay for better user experience
 
     } catch (error) {
       console.error('💥 Auto-greeting error:', error);
@@ -163,7 +162,7 @@ const EnhancedKiosk = () => {
   };
 
   const handleVoiceInput = async (transcript: string, confidence: number, detectedLanguage: string) => {
-    console.log('🎤 Voice input received:', { transcript, confidence, detectedLanguage });
+    console.log('🎤 Processing voice input:', { transcript, confidence, detectedLanguage });
     
     // Auto-switch language if detected differently
     if (detectedLanguage !== state.selectedLanguage) {
@@ -216,7 +215,7 @@ const EnhancedKiosk = () => {
       }]
     });
 
-    // Auto-play response with enhanced error handling
+    // Auto-play response
     try {
       console.log('🔊 Playing response audio...');
       const ttsResult = await textToSpeech(dialogflowResponse.responseText, detectedLanguage);
@@ -230,7 +229,7 @@ const EnhancedKiosk = () => {
       console.error('💥 Response audio playback failed:', error);
     }
 
-    // Enhanced success feedback
+    // Success feedback
     toast({
       title: "🎤 Voice Processed Successfully",
       description: `Language: ${detectedLanguage} (${Math.round(confidence * 100)}% confidence)`,
@@ -241,9 +240,8 @@ const EnhancedKiosk = () => {
   const handleFaceDetection = (detected: boolean, count: number) => {
     updateState({ facesDetected: detected, faceCount: count });
     
-    // Log face detection for debugging
     if (detected) {
-      console.log(`👥 Face detection: ${count} face(s) detected`);
+      console.log(`👥 Face detection updated: ${count} face(s) detected`);
     }
   };
 
