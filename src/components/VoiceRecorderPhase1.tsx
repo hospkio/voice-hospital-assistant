@@ -5,7 +5,19 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 
-const VoiceRecorderPhase1 = () => {
+interface VoiceRecorderPhase1Props {
+  onTranscriptReady?: (audioBlob: Blob) => void;
+  autoStopEnabled?: boolean;
+  silenceThreshold?: number;
+  silenceDuration?: number;
+}
+
+const VoiceRecorderPhase1: React.FC<VoiceRecorderPhase1Props> = ({
+  onTranscriptReady,
+  autoStopEnabled = true,
+  silenceThreshold = 30,
+  silenceDuration = 3000
+}) => {
   const [isRecording, setIsRecording] = useState(false);
   const [recordingTime, setRecordingTime] = useState(0);
   const [hasPermission, setHasPermission] = useState<boolean | null>(null);
@@ -15,6 +27,7 @@ const VoiceRecorderPhase1 = () => {
   const [playbackTime, setPlaybackTime] = useState(0);
   const [audioDuration, setAudioDuration] = useState(0);
   const [audioLevel, setAudioLevel] = useState(0);
+  const [silenceTimer, setSilenceTimer] = useState(0);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
@@ -24,6 +37,8 @@ const VoiceRecorderPhase1 = () => {
   const animationFrameRef = useRef<number>();
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
+  const silenceStartRef = useRef<number>(0);
+  const lastAudioTimeRef = useRef<number>(0);
 
   useEffect(() => {
     return () => {
@@ -46,7 +61,6 @@ const VoiceRecorderPhase1 = () => {
         } 
       });
       
-      // Test that we actually have audio
       const tracks = stream.getAudioTracks();
       if (tracks.length === 0) {
         throw new Error('No audio tracks available');
@@ -81,6 +95,34 @@ const VoiceRecorderPhase1 = () => {
           analyserRef.current.getByteFrequencyData(dataArray);
           const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
           setAudioLevel(average);
+          
+          const currentTime = Date.now();
+          
+          // Auto-stop logic when enabled
+          if (autoStopEnabled) {
+            if (average > silenceThreshold) {
+              // Audio detected - reset silence timer
+              lastAudioTimeRef.current = currentTime;
+              silenceStartRef.current = 0;
+              setSilenceTimer(0);
+            } else {
+              // Silence detected
+              if (silenceStartRef.current === 0) {
+                silenceStartRef.current = currentTime;
+              }
+              
+              const silenceElapsed = currentTime - silenceStartRef.current;
+              setSilenceTimer(silenceElapsed);
+              
+              // Stop recording if silence duration exceeded
+              if (silenceElapsed >= silenceDuration && lastAudioTimeRef.current > 0) {
+                console.log(`🔇 Auto-stopping: ${silenceElapsed}ms of silence detected`);
+                stopRecording();
+                return;
+              }
+            }
+          }
+          
           animationFrameRef.current = requestAnimationFrame(updateAudioLevel);
         }
       };
@@ -110,8 +152,12 @@ const VoiceRecorderPhase1 = () => {
 
       streamRef.current = stream;
       chunksRef.current = [];
+      
+      // Reset silence detection
+      silenceStartRef.current = 0;
+      lastAudioTimeRef.current = 0;
+      setSilenceTimer(0);
 
-      // Setup audio level monitoring
       setupAudioLevelMonitoring(stream);
 
       const mediaRecorder = new MediaRecorder(stream, {
@@ -138,9 +184,13 @@ const VoiceRecorderPhase1 = () => {
         console.log('🎵 Audio blob created:', blob.size, 'bytes, type:', blob.type);
         setAudioBlob(blob);
         
-        // Create URL for playback
         const url = URL.createObjectURL(blob);
         setAudioUrl(url);
+        
+        // Notify parent component if callback provided
+        if (onTranscriptReady) {
+          onTranscriptReady(blob);
+        }
         
         cleanup();
       };
@@ -150,11 +200,10 @@ const VoiceRecorderPhase1 = () => {
         cleanup();
       };
 
-      mediaRecorder.start(1000); // Collect data every second
+      mediaRecorder.start(1000);
       setIsRecording(true);
       setRecordingTime(0);
 
-      // Start timer
       timerRef.current = setInterval(() => {
         setRecordingTime(prev => prev + 1);
       }, 1000);
@@ -288,7 +337,7 @@ const VoiceRecorderPhase1 = () => {
     <div className="space-y-6">
       <Card className="border-2 border-blue-200">
         <CardHeader>
-          <CardTitle className="text-center">Phase 1: Voice Recording System</CardTitle>
+          <CardTitle className="text-center">Enhanced Voice Recording with Auto-Stop</CardTitle>
         </CardHeader>
         <CardContent className="space-y-6">
           {/* Recording Controls */}
@@ -313,8 +362,11 @@ const VoiceRecorderPhase1 = () => {
               <p className={`text-lg font-semibold ${isRecording ? 'text-red-600' : 'text-gray-700'}`}>
                 {isRecording ? `Recording... ${recordingTime}s` : 'Click to start recording'}
               </p>
-              {hasPermission === null && (
-                <p className="text-gray-500 text-sm">Permission check required</p>
+              {isRecording && autoStopEnabled && (
+                <p className="text-sm text-gray-500">
+                  Auto-stops after {silenceDuration/1000}s of silence
+                  {silenceTimer > 0 && ` (${Math.ceil((silenceDuration - silenceTimer)/1000)}s remaining)`}
+                </p>
               )}
             </div>
           </div>
@@ -335,51 +387,11 @@ const VoiceRecorderPhase1 = () => {
                   />
                 ))}
               </div>
-            </div>
-          )}
-
-          {/* Playback Controls */}
-          {audioBlob && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-4">
-              <div className="text-center">
-                <p className="text-green-800 font-semibold">Recording Complete!</p>
-                <p className="text-green-600 text-sm">
-                  Audio size: {(audioBlob.size / 1024).toFixed(1)} KB
-                </p>
-              </div>
-
-              <div className="flex justify-center space-x-2">
-                <Button
-                  onClick={isPlaying ? pauseAudio : playAudio}
-                  variant="outline"
-                  size="sm"
-                >
-                  {isPlaying ? (
-                    <>
-                      <Pause className="h-4 w-4 mr-2" />
-                      Pause
-                    </>
-                  ) : (
-                    <>
-                      <Play className="h-4 w-4 mr-2" />
-                      Play
-                    </>
-                  )}
-                </Button>
-
-                <Button onClick={reset} variant="outline" size="sm">
-                  Record Again
-                </Button>
-              </div>
-
-              {/* Playback Progress */}
-              {audioDuration > 0 && (
-                <div className="space-y-2">
-                  <Progress value={(playbackTime / audioDuration) * 100} className="h-2" />
-                  <div className="flex justify-between text-xs text-gray-500">
-                    <span>{playbackTime.toFixed(1)}s</span>
-                    <span>{audioDuration.toFixed(1)}s</span>
-                  </div>
+              {silenceTimer > 0 && (
+                <div className="text-center">
+                  <p className="text-orange-600 text-sm">
+                    🔇 Silence: {(silenceTimer/1000).toFixed(1)}s
+                  </p>
                 </div>
               )}
             </div>

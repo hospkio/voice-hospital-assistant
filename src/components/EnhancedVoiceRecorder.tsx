@@ -30,10 +30,13 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
   const audioContextRef = useRef<AudioContext | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const animationRef = useRef<number | null>(null);
-  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const silenceCountRef = useRef(0);
+  const silenceStartRef = useRef<number>(0);
+  const lastAudioTimeRef = useRef<number>(0);
   
   const { speechToText, isLoading } = useSpeechToTextService();
+
+  const silenceThreshold = 30;
+  const silenceDuration = 3000; // 3 seconds
 
   useEffect(() => {
     const supported = 'mediaDevices' in navigator && 'getUserMedia' in navigator.mediaDevices;
@@ -75,17 +78,29 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
         const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
         setAudioLevel(average);
         
-        // Voice activity detection
-        if (average > 30) {
-          silenceCountRef.current = 0;
-        } else {
-          silenceCountRef.current += 1;
-        }
+        const currentTime = Date.now();
         
-        // Auto-stop after 3 seconds of silence
-        if (silenceCountRef.current > 15 && isListening) {
-          console.log('🔇 Silence detected, stopping recording...');
-          stopListening();
+        // Auto-stop logic
+        if (average > silenceThreshold) {
+          // Audio detected - reset silence timer
+          lastAudioTimeRef.current = currentTime;
+          silenceStartRef.current = 0;
+          setSilenceTimer(0);
+        } else {
+          // Silence detected
+          if (silenceStartRef.current === 0) {
+            silenceStartRef.current = currentTime;
+          }
+          
+          const silenceElapsed = currentTime - silenceStartRef.current;
+          setSilenceTimer(silenceElapsed);
+          
+          // Stop recording if silence duration exceeded
+          if (silenceElapsed >= silenceDuration && lastAudioTimeRef.current > 0) {
+            console.log(`🔇 Auto-stopping: ${silenceElapsed}ms of silence detected`);
+            stopListening();
+            return;
+          }
         }
         
         if (isListening) {
@@ -103,7 +118,7 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
     if (!isSupported || isListening) return;
 
     try {
-      console.log('🎤 Starting voice recording...');
+      console.log('🎤 Starting enhanced voice recording...');
       
       const stream = await navigator.mediaDevices.getUserMedia({ 
         audio: {
@@ -118,7 +133,9 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
       setupAudioAnalyser(stream);
       
       chunksRef.current = [];
-      silenceCountRef.current = 0;
+      silenceStartRef.current = 0;
+      lastAudioTimeRef.current = 0;
+      setSilenceTimer(0);
       
       mediaRecorderRef.current = new MediaRecorder(stream, {
         mimeType: 'audio/webm;codecs=opus'
@@ -136,7 +153,7 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
         
         try {
           setTranscript('Processing speech...');
-          const result = await speechToText(audioBlob, 'auto');
+          const result = await speechToText(audioBlob, language === 'auto' ? 'auto' : language);
           
           if (result.transcript && result.transcript.trim()) {
             console.log('✅ Speech recognition result:', result);
@@ -157,7 +174,7 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
 
       mediaRecorderRef.current.start();
       onListeningChange(true);
-      setTranscript('Listening... Speak now!');
+      setTranscript('Listening... Speak now! (Auto-stops after 3s silence)');
 
       // Safety timeout - maximum 15 seconds
       setTimeout(() => {
@@ -198,13 +215,10 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
       animationRef.current = null;
     }
     
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-    
     setAudioLevel(0);
-    silenceCountRef.current = 0;
+    setSilenceTimer(0);
+    silenceStartRef.current = 0;
+    lastAudioTimeRef.current = 0;
   };
 
   if (!isSupported) {
@@ -264,7 +278,9 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
         <p className={`text-xl md:text-2xl font-bold ${
           isListening ? 'text-red-600' : isLoading ? 'text-blue-600' : 'text-gray-700'
         }`}>
-          {isLoading ? 'Processing Speech...' : isListening ? 'Listening... (Auto-stops on silence)' : 'Touch to Speak'}
+          {isLoading ? 'Processing Speech...' : 
+           isListening ? 'Listening... (Auto-stops on silence)' : 
+           'Touch to Speak'}
         </p>
         
         {!isListening && !isLoading && (
@@ -274,18 +290,31 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
         )}
       </div>
 
-      {/* Audio Level Visualization */}
+      {/* Audio Level Visualization with Silence Timer */}
       {isListening && (
-        <div className="flex justify-center items-end space-x-2 h-16">
-          {[...Array(8)].map((_, i) => (
-            <div
-              key={i}
-              className="w-3 md:w-4 bg-gradient-to-t from-blue-500 to-green-400 rounded-full transition-all duration-150"
-              style={{
-                height: `${Math.max(8, (audioLevel / 255) * 60 + Math.random() * 10)}px`,
-              }}
-            />
-          ))}
+        <div className="space-y-4">
+          <div className="flex justify-center items-end space-x-2 h-16">
+            {[...Array(8)].map((_, i) => (
+              <div
+                key={i}
+                className="w-3 md:w-4 bg-gradient-to-t from-blue-500 to-green-400 rounded-full transition-all duration-150"
+                style={{
+                  height: `${Math.max(8, (audioLevel / 255) * 60 + Math.random() * 10)}px`,
+                }}
+              />
+            ))}
+          </div>
+          
+          {silenceTimer > 0 && (
+            <div className="text-center bg-orange-100 border border-orange-300 rounded-lg p-3">
+              <p className="text-orange-700 font-medium">
+                🔇 Silence detected: {(silenceTimer/1000).toFixed(1)}s
+              </p>
+              <p className="text-orange-600 text-sm">
+                Auto-stops in {Math.max(0, (silenceDuration - silenceTimer)/1000).toFixed(1)}s
+              </p>
+            </div>
+          )}
         </div>
       )}
 
@@ -320,8 +349,9 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
 
       {/* Instructions */}
       <div className="text-center text-sm md:text-base text-gray-600 bg-gray-50 p-4 rounded-lg">
-        <p className="font-medium mb-2">🎤 Voice Instructions:</p>
+        <p className="font-medium mb-2">🎤 Enhanced Voice Instructions:</p>
         <p>• Recording stops automatically after 3 seconds of silence</p>
+        <p>• Real-time audio level monitoring with silence detection</p>
         <p>• Speak clearly and close to your device</p>
         <p>• Wait for "Processing..." before speaking again</p>
       </div>
