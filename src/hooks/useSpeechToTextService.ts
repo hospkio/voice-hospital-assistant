@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 export const useSpeechToTextService = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -14,33 +15,26 @@ export const useSpeechToTextService = () => {
       formData.append('audio', audioBlob);
       formData.append('languageCode', languageCode);
 
-      const response = await fetch('/functions/v1/speech-to-text', {
-        method: 'POST',
+      // Use Supabase client to invoke the edge function
+      const { data, error } = await supabase.functions.invoke('speech-to-text', {
         body: formData,
       });
 
-      if (!response.ok) {
-        throw new Error(`Speech-to-text API failed with status: ${response.status}`);
+      if (error) {
+        console.error('❌ Supabase function error:', error);
+        throw new Error(`Speech-to-text API failed: ${error.message}`);
       }
 
-      const contentType = response.headers.get('content-type');
-      if (!contentType || !contentType.includes('application/json')) {
-        const text = await response.text();
-        console.error('❌ Non-JSON response:', text);
-        throw new Error('Speech-to-text service returned invalid response');
-      }
-
-      const result = await response.json();
-      console.log('✅ Speech-to-text result:', result);
+      console.log('✅ Speech-to-text result:', data);
       
-      if (result.success) {
+      if (data && data.success) {
         return {
-          transcript: result.transcript,
-          confidence: result.confidence || 0.8,
-          detectedLanguage: result.detectedLanguage || languageCode
+          transcript: data.transcript,
+          confidence: data.confidence || 0.8,
+          detectedLanguage: data.detectedLanguage || languageCode
         };
       } else {
-        throw new Error(result.error || 'Speech to text failed');
+        throw new Error(data?.error || 'Speech to text failed');
       }
     } catch (error) {
       console.error('❌ Speech to text error:', error);
