@@ -1,6 +1,5 @@
-
+import axios from 'axios';
 import { useState } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 
 export const useSpeechToTextService = () => {
   const [isLoading, setIsLoading] = useState(false);
@@ -9,32 +8,53 @@ export const useSpeechToTextService = () => {
     setIsLoading(true);
     
     try {
-      console.log('🎵 Sending audio to speech-to-text service...');
+      console.log('🎵 Sending audio to Google Speech-to-Text service...');
       
       const formData = new FormData();
       formData.append('audio', audioBlob);
       formData.append('languageCode', languageCode);
 
-      // Use Supabase client to invoke the edge function
-      const { data, error } = await supabase.functions.invoke('speech-to-text', {
-        body: formData,
+      // Convert audioBlob to base64
+      const reader = new FileReader();
+      reader.readAsDataURL(audioBlob);
+      const audioBase64 = await new Promise((resolve) => {
+        reader.onloadend = () => resolve(reader.result.split(',')[1]);
       });
 
-      if (error) {
-        console.error('❌ Supabase function error:', error);
-        throw new Error(`Speech-to-text API failed: ${error.message}`);
-      }
+      // Prepare the request payload for Google STT
+      const requestBody = {
+        audio: {
+          content: audioBase64,
+        },
+        config: {
+          encoding: 'LINEAR16', // Adjust based on your audio format
+          sampleRateHertz: 16000, // Adjust based on your audio sample rate
+          languageCode: languageCode,
+        },
+      };
 
-      console.log('✅ Speech-to-text result:', data);
+      // Make a request to Google Speech-to-Text API
+      const response = await axios.post(
+        `https://speech.googleapis.com/v1/speech:recognize?key=25b452d340469ccca367b4e6dfcf7beded7c8be6`, // Replace with your API key
+        requestBody,
+        {
+          headers: {
+            'Content-Type': 'application/json',
+          },
+        }
+      );
+
+      console.log('✅ Google Speech-to-Text result:', response.data);
       
-      if (data && data.success) {
+      if (response.data && response.data.results.length > 0) {
+        const transcript = response.data.results.map(result => result.alternatives[0].transcript).join('\n');
         return {
-          transcript: data.transcript,
-          confidence: data.confidence || 0.8,
-          detectedLanguage: data.detectedLanguage || languageCode
+          transcript,
+          confidence: response.data.results[0].alternatives[0].confidence || 0.8,
+          detectedLanguage: languageCode
         };
       } else {
-        throw new Error(data?.error || 'Speech to text failed');
+        throw new Error('Speech to text failed: No results returned');
       }
     } catch (error) {
       console.error('❌ Speech to text error:', error);
