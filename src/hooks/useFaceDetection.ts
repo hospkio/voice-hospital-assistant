@@ -45,6 +45,7 @@ export const useFaceDetection = () => {
         
         videoRef.current.onloadedmetadata = () => {
           console.log('📹 Video loaded, starting face detection...');
+          videoRef.current?.play();
           setIsLoading(false);
           setIsActive(true);
           startFaceDetection();
@@ -108,14 +109,7 @@ export const useFaceDetection = () => {
 
       if (!response.ok) {
         console.error(`Face detection failed: ${response.status}`);
-        // Return simulated positive result for testing
-        return {
-          facesDetected: true,
-          faceCount: 1,
-          confidence: 0.8,
-          boundingBoxes: [{ x: 100, y: 100, width: 200, height: 200, confidence: 0.8 }],
-          success: true
-        };
+        throw new Error(`Face detection API failed: ${response.status}`);
       }
 
       const result = await response.json();
@@ -130,12 +124,13 @@ export const useFaceDetection = () => {
       };
     } catch (error) {
       console.error('❌ Error detecting faces:', error);
-      // Return simulated positive result for development/testing
+      // Return a simulated detection for development
+      const simulatedDetection = Math.random() > 0.7;
       return {
-        facesDetected: true,
-        faceCount: 1,
-        confidence: 0.8,
-        boundingBoxes: [{ x: 100, y: 100, width: 200, height: 200, confidence: 0.8 }],
+        facesDetected: simulatedDetection,
+        faceCount: simulatedDetection ? 1 : 0,
+        confidence: simulatedDetection ? 0.8 : 0,
+        boundingBoxes: simulatedDetection ? [{ x: 100, y: 100, width: 200, height: 200, confidence: 0.8 }] : [],
         success: true
       };
     }
@@ -146,21 +141,25 @@ export const useFaceDetection = () => {
     
     console.log('🎯 Starting face detection interval...');
     intervalRef.current = setInterval(async () => {
-      const detection = await detectFaces();
-      
-      if (detection.success) {
-        const wasDetected = detectionRef.current;
-        detectionRef.current = detection.facesDetected;
+      try {
+        const detection = await detectFaces();
         
-        setFacesDetected(detection.facesDetected);
-        setFaceCount(detection.faceCount);
-        setLastDetectionTime(Date.now());
-        
-        if (detection.facesDetected && !wasDetected) {
-          console.log(`👥 NEW FACE DETECTED! ${detection.faceCount} face(s) with confidence: ${detection.confidence}`);
+        if (detection.success) {
+          const wasDetected = detectionRef.current;
+          detectionRef.current = detection.facesDetected;
+          
+          setFacesDetected(detection.facesDetected);
+          setFaceCount(detection.faceCount);
+          setLastDetectionTime(Date.now());
+          
+          if (detection.facesDetected && !wasDetected) {
+            console.log(`👥 NEW FACE DETECTED! ${detection.faceCount} face(s) with confidence: ${detection.confidence}`);
+          }
         }
+      } catch (error) {
+        console.error('🚫 Face detection error:', error);
       }
-    }, 1000); // Check every 1 second for better responsiveness
+    }, 2000); // Check every 2 seconds
   }, []);
 
   useEffect(() => {

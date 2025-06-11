@@ -6,7 +6,6 @@ import AppointmentBookingModal from '@/components/AppointmentBookingModal';
 import { useKioskState } from '@/hooks/useKioskState';
 import { useDialogflowCXService } from '@/hooks/useDialogflowCXService';
 import { useGoogleCloudServices } from '@/hooks/useGoogleCloudServices';
-import { useAutoLanguageDetection } from '@/hooks/useAutoLanguageDetection';
 import { useToast } from '@/hooks/use-toast';
 import { hospitalDataService } from '@/services/hospitalDataService';
 
@@ -15,13 +14,13 @@ const EnhancedKiosk = () => {
   const { state, updateState } = useKioskState();
   const { processWithDialogflowCX } = useDialogflowCXService();
   const { textToSpeech, playAudio } = useGoogleCloudServices();
-  const { startListening: detectLanguage } = useAutoLanguageDetection();
   const greetingTriggeredRef = useRef(false);
+  const lastGreetingTimeRef = useRef(0);
 
   // Welcome message on load
   useEffect(() => {
     const welcomeMessage = {
-      responseText: "🌟 Welcome to MediCare Smart Kiosk! Your intelligent healthcare assistant powered by advanced AI and voice recognition technology. I can help you with hospital directions, appointment bookings, department information, and much more - all in multiple languages including English, Hindi, Tamil, Malayalam, Telugu, and more!",
+      responseText: "🌟 Welcome to MediCare Smart Kiosk! I'm your intelligent AI assistant. Step in front of the camera and I'll automatically greet you. You can also use voice commands in multiple languages. How may I help you today?",
       intent: 'welcome',
       entities: {},
       confidence: 1.0,
@@ -36,33 +35,43 @@ const EnhancedKiosk = () => {
   }, [updateState]);
 
   const handleAutoGreeting = async () => {
+    const currentTime = Date.now();
+    
+    // Prevent multiple greetings within 30 seconds
+    if (currentTime - lastGreetingTimeRef.current < 30000) {
+      console.log('🚫 Auto-greeting on cooldown, skipping');
+      return;
+    }
+
     if (greetingTriggeredRef.current) {
-      console.log('🚫 Auto-greeting already triggered, skipping');
+      console.log('🚫 Auto-greeting already in progress, skipping');
       return;
     }
 
     greetingTriggeredRef.current = true;
-    console.log('🎯 Auto-greeting triggered by face detection');
+    lastGreetingTimeRef.current = currentTime;
+    
+    console.log('🎯 AUTO-GREETING TRIGGERED by face detection');
     updateState({ isAutoDetecting: true });
     
-    const enhancedGreetings = {
-      'en-US': "Hello and welcome to MediCare Hospital! I'm your intelligent AI assistant, here to help you with directions, appointments, and hospital information. I can understand and respond in multiple languages. How may I assist you today?",
-      'ta-IN': "வணக்கம்! மெடிகேர் மருத்துவமனைக்கு வரவேற்கிறோம்! நான் உங்கள் புத்திசாலி AI உதவியாளர். திசைகள், அப்பாயிண்ட்மென்ட்கள், மற்றும் மருத்துவமனை தகவல்களுக்கு நான் உங்களுக்கு உதவ முடியும். பல மொழிகளில் பேசி புரிந்துகொள்ள முடியும். இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்?",
-      'ml-IN': "നമസ്കാരം! മെഡികെയർ ഹോസ്പിറ്റലിലേക്ക് സ്വാഗതം! ഞാൻ നിങ്ങളുടെ ബുദ്ധിമാനായ AI അസിസ്റ്റന്റാണ്. ദിശകൾ, അപ്പോയിന്റ്മെന്റുകൾ, ആശുപത്രി വിവരങ്ങൾ എന്നിവയിൽ സഹായിക്കാൻ ഞാൻ ഇവിടെയുണ്ട്. പല ഭാഷകളിലും സംസാരിക്കാനും മനസ്സിലാക്കാനും കഴിയും। ഇന്ന് എനിക്ക് നിങ്ങളെ എങ്ങനെ സഹായിക്കാം?",
-      'hi-IN': "नमस्ते! मेडिकेयर अस्पताल में आपका स्वागत है! मैं आपका बुद्धिमान AI सहायक हूं। दिशा-निर्देश, अपॉइंटमेंट, और अस्पताल की जानकारी के लिए मैं यहां हूं। कई भाषाओं में बात कर सकता और समझ सकता हूं। आज मैं आपकी कैसे सहायता कर सकता हूं?",
-      'te-IN': "నమస్కారం! మెడికేర్ హాస్పిటల్‌కు స్వాగతం! నేను మీ తెలివైన AI సహాయకుడను। దిశలు, అపాయింట్‌మెంట్లు, మరియు హాస్పిటల్ సమాచారం కోసం నేను ఇక్కడ ఉన్నాను। అనేక భాషలలో మాట్లాడగలను మరియు అర్థం చేసుకోగలను। ఈరోజు నేను మీకు ఎలా సహాయం చేయగలను?"
+    const greetings = {
+      'en-US': "Hello! Welcome to MediCare Hospital! I'm your AI assistant. I can help you with directions, appointments, and hospital information in multiple languages. How may I assist you today?",
+      'ta-IN': "வணக்கம்! மெடிகேர் மருத்துவமனைக்கு வரவேற்கிறோம்! நான் உங்கள் AI உதவியாளர். திசைகள், அப்பாயிண்ட்மென்ட்கள் மற்றும் மருத்துவமனை தகவல்களுக்கு உதவ முடியும். இன்று எப்படி உதவ முடியும்?",
+      'hi-IN': "नमस्ते! मेडिकेयर अस्पताल में आपका स्वागत है! मैं आपका AI सहायक हूं। दिशा-निर्देश, अपॉइंटमेंट और अस्पताल की जानकारी में मदद कर सकता हूं। आज कैसे सहायता करूं?",
+      'ml-IN': "നമസ്കാരം! മെഡികെയർ ഹോസ്പിറ്റലിലേക്ക് സ്വാഗതം! ഞാൻ നിങ്ങളുടെ AI അസിസ്റ്റന്റാണ്. ദിശകൾ, അപ്പോയിന്റ്മെന്റുകൾ, ആശുപത്രി വിവരങ്ങൾ എന്നിവയിൽ സഹായിക്കാം। ഇന്ന് എങ്ങനെ സഹായിക്കാം?",
+      'te-IN': "నమస్కారం! మెడికేర్ హాస్పిటల్‌కు స్వాగతం! నేను మీ AI సహాయకుడను. దిశలు, అపాయింట్‌మెంట్లు మరియు హాస్పిటల్ సమాచారంలో సహాయం చేయగలను. ఈరోజు ఎలా సహాయం చేయగలను?"
     };
 
     try {
-      console.log('🔊 Playing enhanced greeting with visual feedback');
+      console.log('🔊 Starting auto-greeting process...');
       
       toast({
-        title: "👋 Welcome! Face Detected",
-        description: "AI Assistant is now active and ready to help you. Please speak clearly.",
-        duration: 8000,
+        title: "👋 Face Detected!",
+        description: "AI Assistant is now active. You can speak or use voice commands.",
+        duration: 6000,
       });
 
-      const greeting = enhancedGreetings[state.selectedLanguage] || enhancedGreetings['en-US'];
+      const greeting = greetings[state.selectedLanguage] || greetings['en-US'];
       
       const greetingResponse = {
         responseText: greeting,
@@ -90,62 +99,57 @@ const EnhancedKiosk = () => {
           trigger: 'face-detection',
           language: state.selectedLanguage
         }],
-        lastGreetingTime: Date.now()
+        lastGreetingTime: currentTime
       });
 
-      console.log('🎵 Starting TTS for greeting...');
+      console.log('🎵 Playing greeting audio...');
       const ttsResult = await textToSpeech(greeting, state.selectedLanguage);
       
       if (ttsResult.success && ttsResult.audioContent) {
         console.log('✅ Playing greeting audio...');
         await playAudio(ttsResult.audioContent);
-        console.log('🎉 Greeting audio completed successfully');
+        console.log('🎉 Greeting completed successfully!');
         
         toast({
-          title: "🎤 Voice Recognition Active",
-          description: "You can now speak naturally. I'll detect your language automatically.",
-          duration: 5000,
+          title: "🎤 Voice Ready",
+          description: "I can understand multiple languages. Please speak naturally.",
+          duration: 4000,
         });
-        
-        // Reset greeting trigger after successful greeting
-        setTimeout(() => {
-          greetingTriggeredRef.current = false;
-          console.log('🔄 Greeting trigger reset - ready for next detection');
-        }, 30000);
         
       } else {
         console.error('❌ TTS failed:', ttsResult.error);
-        greetingTriggeredRef.current = false;
         toast({
           title: "⚠️ Audio Issue",
-          description: "Face detected but audio playback failed. You can still use voice commands.",
+          description: "Face detected but audio failed. Voice commands still work.",
           variant: "destructive",
         });
       }
 
     } catch (error) {
       console.error('💥 Auto-greeting error:', error);
-      greetingTriggeredRef.current = false;
       
       toast({
-        title: "⚠️ System Error",
-        description: "Face detected but greeting system failed. Please use voice commands manually.",
+        title: "⚠️ Greeting Error",
+        description: "Face detected but greeting failed. Please use voice commands.",
         variant: "destructive",
       });
     } finally {
       updateState({ isAutoDetecting: false });
+      greetingTriggeredRef.current = false;
+      
+      console.log('🔄 Auto-greeting process completed');
     }
   };
 
   const handleVoiceInput = async (transcript: string, confidence: number, detectedLanguage: string) => {
-    console.log('🎤 Processing voice input:', { transcript, confidence, detectedLanguage });
+    console.log('🎤 PROCESSING VOICE INPUT:', { transcript, confidence, detectedLanguage });
     
     if (detectedLanguage !== state.selectedLanguage) {
       updateState({ selectedLanguage: detectedLanguage });
       console.log('🌐 Language auto-switched to:', detectedLanguage);
       
       toast({
-        title: "🌍 Language Auto-Detected",
+        title: "🌍 Language Detected",
         description: `Now responding in ${detectedLanguage}`,
         duration: 3000,
       });
@@ -161,7 +165,7 @@ const EnhancedKiosk = () => {
       confidence
     }];
 
-    console.log('🤖 Processing with Dialogflow CX...');
+    console.log('🤖 Sending to Dialogflow CX...');
     const dialogflowResponse = await processWithDialogflowCX(transcript, state.sessionId, detectedLanguage);
     
     if (dialogflowResponse.intent?.toLowerCase().includes('appointment')) {
@@ -191,16 +195,16 @@ const EnhancedKiosk = () => {
       const ttsResult = await textToSpeech(dialogflowResponse.responseText, detectedLanguage);
       if (ttsResult.success && ttsResult.audioContent) {
         await playAudio(ttsResult.audioContent);
-        console.log('✅ Response audio played successfully');
+        console.log('✅ Response audio completed');
       } else {
         console.error('❌ Response audio failed:', ttsResult.error);
       }
     } catch (error) {
-      console.error('💥 Response audio playback failed:', error);
+      console.error('💥 Audio playback failed:', error);
     }
 
     toast({
-      title: "🎤 Voice Processed Successfully",
+      title: "✅ Voice Processed",
       description: `Language: ${detectedLanguage} (${Math.round(confidence * 100)}% confidence)`,
       duration: 3000,
     });
@@ -210,7 +214,7 @@ const EnhancedKiosk = () => {
     updateState({ facesDetected: detected, faceCount: count });
     
     if (detected) {
-      console.log(`👥 Face detection updated: ${count} face(s) detected`);
+      console.log(`👥 FACE DETECTION: ${count} face(s) detected`);
     }
   };
 
