@@ -1,9 +1,12 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Mic, Square, Loader2, Volume2, MicOff } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { useSpeechToTextService } from '@/hooks/useSpeechToTextService';
+import VoiceControlButton from '@/components/voice/VoiceControlButton';
+import VoiceStatusDisplay from '@/components/voice/VoiceStatusDisplay';
+import AudioLevelVisualizer from '@/components/voice/AudioLevelVisualizer';
+import TranscriptDisplay from '@/components/voice/TranscriptDisplay';
+import VoiceInstructions from '@/components/voice/VoiceInstructions';
+import PermissionErrorDisplay from '@/components/voice/PermissionErrorDisplay';
 
 interface EnhancedVoiceRecorderProps {
   isListening: boolean;
@@ -222,139 +225,37 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
   };
 
   if (!isSupported) {
-    return (
-      <Card className="bg-red-50 border-red-200">
-        <CardContent className="p-6 text-center">
-          <MicOff className="h-12 w-12 text-red-500 mx-auto mb-4" />
-          <p className="text-red-600 font-semibold text-lg">Microphone Not Supported</p>
-          <p className="text-red-500 text-sm mt-2">
-            Please use a modern browser and allow microphone access
-          </p>
-        </CardContent>
-      </Card>
-    );
+    return <PermissionErrorDisplay type="not-supported" />;
   }
 
   if (permissionStatus === 'denied') {
-    return (
-      <Card className="bg-orange-50 border-orange-200">
-        <CardContent className="p-6 text-center">
-          <MicOff className="h-12 w-12 text-orange-500 mx-auto mb-4" />
-          <p className="text-orange-600 font-semibold text-lg">Microphone Access Denied</p>
-          <p className="text-orange-500 text-sm mt-2">
-            Please allow microphone access in your browser settings
-          </p>
-        </CardContent>
-      </Card>
-    );
+    return <PermissionErrorDisplay type="denied" />;
   }
 
   return (
     <div className="space-y-6">
-      {/* Main Voice Control Button */}
-      <div className="flex justify-center">
-        <Button
-          onClick={isListening ? stopListening : startListening}
-          disabled={isLoading}
-          size="lg"
-          className={`h-24 w-24 md:h-28 md:w-28 rounded-full text-white transition-all duration-300 shadow-lg ${
-            isListening 
-              ? 'bg-red-500 hover:bg-red-600 animate-pulse scale-110' 
-              : 'bg-blue-500 hover:bg-blue-600 hover:scale-105'
-          }`}
-        >
-          {isLoading ? (
-            <Loader2 className="h-10 w-10 md:h-12 md:w-12 animate-spin" />
-          ) : isListening ? (
-            <Square className="h-10 w-10 md:h-12 md:w-12" />
-          ) : (
-            <Mic className="h-10 w-10 md:h-12 md:w-12" />
-          )}
-        </Button>
-      </div>
+      <VoiceControlButton
+        isListening={isListening}
+        isLoading={isLoading}
+        onStart={startListening}
+        onStop={stopListening}
+      />
 
-      {/* Status Display */}
-      <div className="text-center space-y-3">
-        <p className={`text-xl md:text-2xl font-bold ${
-          isListening ? 'text-red-600' : isLoading ? 'text-blue-600' : 'text-gray-700'
-        }`}>
-          {isLoading ? 'Processing Speech...' : 
-           isListening ? 'Listening... (Auto-stops on silence)' : 
-           'Touch to Speak'}
-        </p>
-        
-        {!isListening && !isLoading && (
-          <p className="text-gray-500 text-lg md:text-xl">
-            🎤 Tap microphone and speak clearly
-          </p>
-        )}
-      </div>
+      <VoiceStatusDisplay
+        isListening={isListening}
+        isLoading={isLoading}
+      />
 
-      {/* Audio Level Visualization with Silence Timer */}
-      {isListening && (
-        <div className="space-y-4">
-          <div className="flex justify-center items-end space-x-2 h-16">
-            {[...Array(8)].map((_, i) => (
-              <div
-                key={i}
-                className="w-3 md:w-4 bg-gradient-to-t from-blue-500 to-green-400 rounded-full transition-all duration-150"
-                style={{
-                  height: `${Math.max(8, (audioLevel / 255) * 60 + Math.random() * 10)}px`,
-                }}
-              />
-            ))}
-          </div>
-          
-          {silenceTimer > 0 && (
-            <div className="text-center bg-orange-100 border border-orange-300 rounded-lg p-3">
-              <p className="text-orange-700 font-medium">
-                🔇 Silence detected: {(silenceTimer/1000).toFixed(1)}s
-              </p>
-              <p className="text-orange-600 text-sm">
-                Auto-stops in {Math.max(0, (silenceDuration - silenceTimer)/1000).toFixed(1)}s
-              </p>
-            </div>
-          )}
-        </div>
-      )}
+      <AudioLevelVisualizer
+        isListening={isListening}
+        audioLevel={audioLevel}
+        silenceTimer={silenceTimer}
+        silenceDuration={silenceDuration}
+      />
 
-      {/* Live Transcript */}
-      {transcript && (
-        <Card className={`border-2 ${
-          transcript.includes('Failed') || transcript.includes('No speech') 
-            ? 'bg-red-50 border-red-200' 
-            : 'bg-blue-50 border-blue-200'
-        }`}>
-          <CardContent className="p-4 md:p-6">
-            <div className="flex items-center space-x-2 mb-2">
-              <Volume2 className={`h-5 w-5 ${
-                transcript.includes('Failed') ? 'text-red-600' : 'text-blue-600'
-              }`} />
-              <p className={`font-semibold ${
-                transcript.includes('Failed') ? 'text-red-800' : 'text-blue-800'
-              }`}>
-                {transcript.includes('Processing') ? 'Processing Speech' : 
-                 transcript.includes('Listening') ? 'Listening for Speech' :
-                 transcript.includes('Failed') ? 'Processing Error' : 'Speech Detected'}
-              </p>
-            </div>
-            <p className={`text-lg md:text-xl italic ${
-              transcript.includes('Failed') ? 'text-red-700' : 'text-blue-700'
-            }`}>
-              "{transcript}"
-            </p>
-          </CardContent>
-        </Card>
-      )}
+      <TranscriptDisplay transcript={transcript} />
 
-      {/* Instructions */}
-      <div className="text-center text-sm md:text-base text-gray-600 bg-gray-50 p-4 rounded-lg">
-        <p className="font-medium mb-2">🎤 Enhanced Voice Instructions:</p>
-        <p>• Recording stops automatically after 3 seconds of silence</p>
-        <p>• Real-time audio level monitoring with silence detection</p>
-        <p>• Speak clearly and close to your device</p>
-        <p>• Wait for "Processing..." before speaking again</p>
-      </div>
+      <VoiceInstructions />
     </div>
   );
 };
