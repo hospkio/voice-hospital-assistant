@@ -1,4 +1,6 @@
 
+import { API_CREDENTIALS, getCredentials as getHardcodedCredentials, areCredentialsConfigured as checkHardcodedCredentials } from '@/config/credentials';
+
 interface GoogleCloudCredentials {
   apiKey: string;
   projectId: string;
@@ -6,7 +8,7 @@ interface GoogleCloudCredentials {
     projectId: string;
     location: string;
     agentId: string;
-    serviceAccountKey?: string; // For OAuth2 authentication
+    serviceAccountKey?: string;
   };
   vision: {
     apiKey: string;
@@ -29,12 +31,11 @@ const getDefaultCredentials = (): GoogleCloudCredentials => ({
 });
 
 export const credentialsManager = {
-  // Save credentials to localStorage as JSON
+  // Save credentials to localStorage as JSON (kept for backward compatibility)
   saveCredentials: (credentials: Partial<GoogleCloudCredentials>) => {
     try {
       const existing = credentialsManager.getCredentials();
       
-      // Deep merge to ensure nested objects are properly handled
       const updated = {
         ...existing,
         ...credentials,
@@ -58,9 +59,17 @@ export const credentialsManager = {
     }
   },
 
-  // Load credentials from localStorage
+  // Load credentials - prioritize hardcoded credentials, then localStorage
   getCredentials: (): GoogleCloudCredentials => {
     try {
+      // First try to use hardcoded credentials
+      const hardcodedCreds = getHardcodedCredentials();
+      if (checkHardcodedCredentials()) {
+        console.log('✅ Using hardcoded credentials from config file');
+        return hardcodedCreds;
+      }
+
+      // Fallback to localStorage if hardcoded credentials are not configured
       const encoded = localStorage.getItem(CREDENTIALS_KEY);
       if (!encoded) {
         return getDefaultCredentials();
@@ -68,7 +77,6 @@ export const credentialsManager = {
       
       const decoded = JSON.parse(atob(encoded));
       
-      // Ensure the decoded object has the complete structure
       const defaultCreds = getDefaultCredentials();
       const merged = {
         ...defaultCreds,
@@ -90,8 +98,11 @@ export const credentialsManager = {
     }
   },
 
-  // Check if credentials are configured
+  // Check if credentials are configured (check hardcoded first, then localStorage)
   areCredentialsConfigured: (): boolean => {
+    if (checkHardcodedCredentials()) {
+      return true;
+    }
     const creds = credentialsManager.getCredentials();
     return !!(creds.apiKey && creds.projectId);
   },
@@ -99,6 +110,6 @@ export const credentialsManager = {
   // Clear all credentials
   clearCredentials: () => {
     localStorage.removeItem(CREDENTIALS_KEY);
-    console.log('🗑️ Credentials cleared');
+    console.log('🗑️ Credentials cleared from localStorage');
   }
 };

@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState, useRef } from 'react';
 import { Camera, CameraOff, Users, Eye, EyeOff, Sparkles, Zap } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -31,36 +30,51 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
   const [greetingCooldown, setGreetingCooldown] = useState(false);
   const previousDetectionRef = useRef(false);
   const greetingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastGreetingTimeRef = useRef<number>(0);
 
   // Set up detection callback
   useEffect(() => {
+    console.log('🔧 Setting up face detection callback...');
     setDetectionCallback((detected: boolean, count: number) => {
-      console.log('📊 Face detection callback:', { detected, count });
+      console.log('📊 Face detection callback triggered:', { detected, count, previousDetection: previousDetectionRef.current });
+      
+      // Always notify parent component
       onFaceDetected(detected, count);
       
       // Handle auto-greeting logic
+      const currentTime = Date.now();
+      const timeSinceLastGreeting = currentTime - lastGreetingTimeRef.current;
+      
       if (detected && !previousDetectionRef.current && !hasTriggeredGreeting && !greetingCooldown && onAutoGreetingTriggered) {
-        console.log('🎉 NEW FACE DETECTED! Triggering auto-greeting...');
-        setHasTriggeredGreeting(true);
-        setGreetingCooldown(true);
-        
-        // Small delay to ensure face is stable
-        greetingTimeoutRef.current = setTimeout(() => {
-          console.log('🤖 Executing auto-greeting...');
-          onAutoGreetingTriggered();
-        }, 1000);
-        
-        // Reset greeting trigger after 45 seconds
-        setTimeout(() => {
-          setHasTriggeredGreeting(false);
-          console.log('🔄 Greeting trigger reset');
-        }, 45000);
-        
-        // Cooldown period of 15 seconds
-        setTimeout(() => {
-          setGreetingCooldown(false);
-          console.log('🟢 Greeting cooldown ended');
-        }, 15000);
+        // Only trigger if enough time has passed since last greeting (30 seconds cooldown)
+        if (timeSinceLastGreeting > 30000) {
+          console.log('🎉 NEW FACE DETECTED! Triggering auto-greeting...');
+          setHasTriggeredGreeting(true);
+          setGreetingCooldown(true);
+          lastGreetingTimeRef.current = currentTime;
+          
+          // Small delay to ensure face is stable before greeting
+          greetingTimeoutRef.current = setTimeout(() => {
+            console.log('🤖 Executing auto-greeting...');
+            if (onAutoGreetingTriggered) {
+              onAutoGreetingTriggered();
+            }
+          }, 1500); // 1.5 second delay for stability
+          
+          // Reset greeting trigger after 45 seconds
+          setTimeout(() => {
+            setHasTriggeredGreeting(false);
+            console.log('🔄 Greeting trigger reset');
+          }, 45000);
+          
+          // Cooldown period of 15 seconds
+          setTimeout(() => {
+            setGreetingCooldown(false);
+            console.log('🟢 Greeting cooldown ended');
+          }, 15000);
+        } else {
+          console.log('⏰ Auto-greeting on cooldown, time since last:', timeSinceLastGreeting);
+        }
       }
       
       previousDetectionRef.current = detected;
@@ -70,9 +84,9 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
   useEffect(() => {
     if (autoStart) {
       const timer = setTimeout(() => {
-        console.log('🚀 Auto-starting camera...');
+        console.log('🚀 Auto-starting camera in 2 seconds...');
         startCamera();
-      }, 1000);
+      }, 2000); // 2 second delay for better initialization
       return () => clearTimeout(timer);
     }
   }, [autoStart, startCamera]);
@@ -85,6 +99,16 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
       }
     };
   }, []);
+
+  const handleCameraToggle = () => {
+    if (isActive) {
+      console.log('👤 User manually stopping camera');
+      stopCamera();
+    } else {
+      console.log('👤 User manually starting camera');
+      startCamera();
+    }
+  };
 
   return (
     <Card className="w-full border-0 shadow-2xl bg-gradient-to-br from-blue-50 via-white to-green-50 overflow-hidden">
@@ -181,7 +205,7 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
         
         {/* Control Button */}
         <Button
-          onClick={isActive ? stopCamera : startCamera}
+          onClick={handleCameraToggle}
           disabled={isLoading}
           className={`w-full h-16 text-xl font-bold rounded-xl transition-all duration-300 shadow-lg hover:shadow-xl ${
             isActive 
