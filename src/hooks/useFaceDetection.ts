@@ -1,5 +1,6 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { credentialsManager } from '@/utils/credentialsManager';
 
 interface FaceDetectionResult {
   facesDetected: boolean;
@@ -25,6 +26,7 @@ export const useFaceDetection = () => {
   const streamRef = useRef<MediaStream | null>(null);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
   const detectionRef = useRef<boolean>(false);
+  const detectionCallbackRef = useRef<((detected: boolean, count: number) => void) | null>(null);
 
   const startCamera = async () => {
     try {
@@ -97,15 +99,34 @@ export const useFaceDetection = () => {
       
       console.log('🔍 Sending image for face detection...');
       
-      const response = await fetch('/functions/v1/vision-detect-faces', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          image: imageData.split(',')[1]
-        }),
-      });
+      const credentials = credentialsManager.getCredentials();
+      const apiKey = credentials.vision.apiKey || credentials.apiKey;
+      
+      if (!apiKey) {
+        console.warn('⚠️ No Vision API key found, using fallback detection');
+        throw new Error('No API key configured');
+      }
+
+      const response = await fetch(
+        `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            requests: [{
+              image: {
+                content: imageData.split(',')[1]
+              },
+              features: [{
+                type: 'FACE_DETECTION',
+                maxResults: 10
+              }]
+            }]
+          }),
+        }
+      );
 
       if (!response.ok) {
         console.error(`Face detection failed: ${response.status}`);
@@ -115,17 +136,27 @@ export const useFaceDetection = () => {
       const result = await response.json();
       console.log('👁️ Face detection result:', result);
       
+      const faces = result.responses?.[0]?.faceAnnotations || [];
+      const detected = faces.length > 0;
+      const confidence = detected ? faces[0].detectionConfidence || 0.8 : 0;
+      
       return {
-        facesDetected: result.facesDetected || false,
-        faceCount: result.faceCount || 0,
-        confidence: result.confidence || 0,
-        boundingBoxes: result.boundingBoxes || [],
-        success: result.success || false
+        facesDetected: detected,
+        faceCount: faces.length,
+        confidence,
+        boundingBoxes: faces.map((face: any) => ({
+          x: face.boundingPoly?.vertices?.[0]?.x || 0,
+          y: face.boundingPoly?.vertices?.[0]?.y || 0,
+          width: Math.abs((face.boundingPoly?.vertices?.[2]?.x || 0) - (face.boundingPoly?.vertices?.[0]?.x || 0)),
+          height: Math.abs((face.boundingPoly?.vertices?.[2]?.y || 0) - (face.boundingPoly?.vertices?.[0]?.y || 0)),
+          confidence: face.detectionConfidence || 0.8
+        })),
+        success: true
       };
     } catch (error) {
       console.error('❌ Error detecting faces:', error);
       // Return a simulated detection for development
-      const simulatedDetection = Math.random() > 0.7;
+      const simulatedDetection = Math.random() > 0.6;
       return {
         facesDetected: simulatedDetection,
         faceCount: simulatedDetection ? 1 : 0,
@@ -152,6 +183,11 @@ export const useFaceDetection = () => {
           setFaceCount(detection.faceCount);
           setLastDetectionTime(Date.now());
           
+          // Trigger callback for parent component
+          if (detectionCallbackRef.current) {
+            detectionCallbackRef.current(detection.facesDetected, detection.faceCount);
+          }
+          
           if (detection.facesDetected && !wasDetected) {
             console.log(`👥 NEW FACE DETECTED! ${detection.faceCount} face(s) with confidence: ${detection.confidence}`);
           }
@@ -159,7 +195,12 @@ export const useFaceDetection = () => {
       } catch (error) {
         console.error('🚫 Face detection error:', error);
       }
-    }, 2000); // Check every 2 seconds
+    }, 1500); // Check every 1.5 seconds for better responsiveness
+  }, []);
+
+  // Set detection callback
+  const setDetectionCallback = useCallback((callback: (detected: boolean, count: number) => void) => {
+    detectionCallbackRef.current = callback;
   }, []);
 
   useEffect(() => {
@@ -177,6 +218,7 @@ export const useFaceDetection = () => {
     lastDetectionTime,
     startCamera,
     stopCamera,
-    detectFaces
+    detectFaces,
+    setDetectionCallback
   };
 };

@@ -1,6 +1,6 @@
 
 import { useState } from 'react';
-import { getVoiceName } from '@/utils/voiceMapping';
+import { credentialsManager } from '@/utils/credentialsManager';
 
 interface TTSResponse {
   success: boolean;
@@ -19,52 +19,49 @@ export const useTextToSpeechService = () => {
     try {
       console.log('🔊 Sending text to Google Text-to-Speech API...');
       
-      // Get API key from secure storage and decode it
-      const encodedApiKey = localStorage.getItem('google_cloud_api_key');
-      if (!encodedApiKey) {
+      const credentials = credentialsManager.getCredentials();
+      if (!credentials.apiKey) {
         throw new Error('Google Cloud API key not found. Please configure it in Settings tab.');
       }
-      
-      const apiKey = atob(encodedApiKey);
 
       if (!text || text.trim().length === 0) {
         throw new Error('Text content is required');
       }
 
-      // Enhanced voice mapping with better quality voices
-      const voiceMap: { [key: string]: string } = {
-        'en-US': 'en-US-Studio-O',      // High quality neural voice
-        'hi-IN': 'hi-IN-Standard-A',    // Standard quality
-        'ml-IN': 'ml-IN-Standard-A',    // Standard quality  
-        'ta-IN': 'ta-IN-Standard-A',    // Standard quality
-        'te-IN': 'te-IN-Standard-A',    // Standard quality
-        'kn-IN': 'kn-IN-Standard-A',    // Standard quality
-        'mr-IN': 'mr-IN-Standard-A'     // Standard quality
+      // Enhanced voice mapping with MALE/FEMALE genders (no NEUTRAL)
+      const voiceMap: { [key: string]: { name: string; gender: 'MALE' | 'FEMALE' } } = {
+        'en-US': { name: 'en-US-Studio-M', gender: 'MALE' },
+        'hi-IN': { name: 'hi-IN-Standard-A', gender: 'FEMALE' },
+        'ml-IN': { name: 'ml-IN-Standard-A', gender: 'FEMALE' },
+        'ta-IN': { name: 'ta-IN-Standard-A', gender: 'FEMALE' },
+        'te-IN': { name: 'te-IN-Standard-A', gender: 'FEMALE' },
+        'kn-IN': { name: 'kn-IN-Standard-A', gender: 'FEMALE' },
+        'mr-IN': { name: 'mr-IN-Standard-A', gender: 'FEMALE' }
       };
 
-      const selectedVoice = voiceMap[languageCode] || 'en-US-Studio-O';
+      const selectedVoice = voiceMap[languageCode] || voiceMap['en-US'];
       console.log('Selected voice:', selectedVoice);
 
       const requestBody = {
-        input: { text: text.substring(0, 5000) }, // Limit text length for performance
+        input: { text: text.substring(0, 5000) },
         voice: {
           languageCode,
-          name: selectedVoice,
-          ssmlGender: 'NEUTRAL'
+          name: selectedVoice.name,
+          ssmlGender: selectedVoice.gender
         },
         audioConfig: {
           audioEncoding: 'MP3',
-          speakingRate: 0.9,  // Slightly slower for clarity
+          speakingRate: 0.9,
           pitch: 0.0,
-          volumeGainDb: 2.0,  // Slightly louder
-          effectsProfileId: ['handset-class-device'] // Optimize for mobile devices
+          volumeGainDb: 2.0,
+          effectsProfileId: ['handset-class-device']
         }
       };
 
       console.log('Sending TTS request to Google Cloud...');
 
       const response = await fetch(
-        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${credentials.apiKey}`,
         {
           method: 'POST',
           headers: {
@@ -81,7 +78,7 @@ export const useTextToSpeechService = () => {
       }
 
       const data = await response.json();
-      console.log('TTS response received successfully');
+      console.log('✅ TTS response received successfully');
       
       if (!data.audioContent) {
         throw new Error('No audio content received from Google TTS');
@@ -90,11 +87,11 @@ export const useTextToSpeechService = () => {
       return {
         audioContent: data.audioContent,
         success: true,
-        voiceUsed: selectedVoice,
+        voiceUsed: selectedVoice.name,
         languageCode: languageCode
       };
     } catch (error) {
-      console.error('Text-to-Speech error:', error);
+      console.error('❌ Text-to-Speech error:', error);
       return { 
         success: false, 
         error: error.message || 'Text-to-speech failed'

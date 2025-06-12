@@ -1,5 +1,6 @@
 
 import { useState } from 'react';
+import { credentialsManager } from '@/utils/credentialsManager';
 
 interface STTResponse {
   transcript: string;
@@ -17,13 +18,10 @@ export const useSpeechToTextService = () => {
     try {
       console.log('🎵 Sending audio to Google Speech-to-Text API...');
       
-      // Get API key from secure storage and decode it
-      const encodedApiKey = localStorage.getItem('google_cloud_api_key');
-      if (!encodedApiKey) {
+      const credentials = credentialsManager.getCredentials();
+      if (!credentials.apiKey) {
         throw new Error('Google Cloud API key not found. Please configure it in Settings tab.');
       }
-      
-      const apiKey = atob(encodedApiKey);
 
       // Convert audioBlob to base64
       const reader = new FileReader();
@@ -35,7 +33,6 @@ export const useSpeechToTextService = () => {
         reader.readAsDataURL(audioBlob);
       });
 
-      // Prepare the request payload for Google STT
       const requestBody = {
         audio: {
           content: audioBase64,
@@ -55,9 +52,8 @@ export const useSpeechToTextService = () => {
 
       console.log('Sending request to Google Speech-to-Text API...');
 
-      // Make request to Google Speech-to-Text API
       const response = await fetch(
-        `https://speech.googleapis.com/v1/speech:recognize?key=${apiKey}`,
+        `https://speech.googleapis.com/v1/speech:recognize?key=${credentials.apiKey}`,
         {
           method: 'POST',
           headers: {
@@ -81,7 +77,6 @@ export const useSpeechToTextService = () => {
         const transcript = result.alternatives[0].transcript;
         const confidence = result.alternatives[0].confidence || 0.8;
         
-        // Detect language from response or use provided
         let detectedLanguage = languageCode;
         if (languageCode === 'auto' && result.languageCode) {
           detectedLanguage = result.languageCode;

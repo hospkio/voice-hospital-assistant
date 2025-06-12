@@ -35,10 +35,11 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
   const animationRef = useRef<number | null>(null);
   const silenceStartRef = useRef<number>(0);
   const lastAudioTimeRef = useRef<number>(0);
+  const silenceTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const { speechToText, isLoading } = useSpeechToTextService();
 
-  const silenceThreshold = 30;
+  const silenceThreshold = 25; // Lower threshold for better detection
   const silenceDuration = 3000; // 3 seconds
 
   useEffect(() => {
@@ -75,7 +76,7 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
       const dataArray = new Uint8Array(bufferLength);
       
       const updateAudioLevel = () => {
-        if (!analyserRef.current) return;
+        if (!analyserRef.current || !isListening) return;
         
         analyserRef.current.getByteFrequencyData(dataArray);
         const average = dataArray.reduce((sum, value) => sum + value, 0) / bufferLength;
@@ -83,27 +84,34 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
         
         const currentTime = Date.now();
         
-        // Auto-stop logic
         if (average > silenceThreshold) {
           // Audio detected - reset silence timer
           lastAudioTimeRef.current = currentTime;
           silenceStartRef.current = 0;
           setSilenceTimer(0);
+          
+          // Clear any existing silence timeout
+          if (silenceTimeoutRef.current) {
+            clearTimeout(silenceTimeoutRef.current);
+            silenceTimeoutRef.current = null;
+          }
+          
+          console.log('🎵 Audio detected, level:', average);
         } else {
           // Silence detected
           if (silenceStartRef.current === 0) {
             silenceStartRef.current = currentTime;
+            console.log('🔇 Silence started at:', currentTime);
+            
+            // Start silence timeout
+            silenceTimeoutRef.current = setTimeout(() => {
+              console.log('⏰ Auto-stopping due to 3 seconds of silence');
+              stopListening();
+            }, silenceDuration);
           }
           
           const silenceElapsed = currentTime - silenceStartRef.current;
           setSilenceTimer(silenceElapsed);
-          
-          // Stop recording if silence duration exceeded
-          if (silenceElapsed >= silenceDuration && lastAudioTimeRef.current > 0) {
-            console.log(`🔇 Auto-stopping: ${silenceElapsed}ms of silence detected`);
-            stopListening();
-            return;
-          }
         }
         
         if (isListening) {
@@ -137,7 +145,7 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
       
       chunksRef.current = [];
       silenceStartRef.current = 0;
-      lastAudioTimeRef.current = 0;
+      lastAudioTimeRef.current = Date.now(); // Set initial audio time
       setSilenceTimer(0);
       
       mediaRecorderRef.current = new MediaRecorder(stream, {
@@ -155,20 +163,23 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
         const audioBlob = new Blob(chunksRef.current, { type: 'audio/webm;codecs=opus' });
         
         try {
-          setTranscript('Processing speech...');
+          setTranscript('🔄 Processing speech...');
           const result = await speechToText(audioBlob, language === 'auto' ? 'auto' : language);
           
           if (result.transcript && result.transcript.trim()) {
             console.log('✅ Speech recognition result:', result);
+            setTranscript(`👤 You said: "${result.transcript}"`);
             onVoiceData(result.transcript, result.confidence, result.detectedLanguage);
-            setTranscript('');
+            
+            // Clear transcript after showing for 3 seconds
+            setTimeout(() => setTranscript(''), 3000);
           } else {
-            setTranscript('No speech detected. Please try again.');
+            setTranscript('❌ No speech detected. Please try again.');
             setTimeout(() => setTranscript(''), 3000);
           }
         } catch (error) {
           console.error('❌ Speech to text failed:', error);
-          setTranscript('Failed to process speech. Please try again.');
+          setTranscript('⚠️ Failed to process speech. Please try again.');
           setTimeout(() => setTranscript(''), 3000);
         }
 
@@ -177,19 +188,19 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
 
       mediaRecorderRef.current.start();
       onListeningChange(true);
-      setTranscript('Listening... Speak now! (Auto-stops after 3s silence)');
+      setTranscript('🎤 Listening... Speak now! (Auto-stops after 3s silence)');
 
-      // Safety timeout - maximum 15 seconds
+      // Safety timeout - maximum 30 seconds
       setTimeout(() => {
         if (isListening && mediaRecorderRef.current?.state === 'recording') {
           console.log('⏰ Maximum recording time reached, stopping...');
           stopListening();
         }
-      }, 15000);
+      }, 30000);
 
     } catch (error) {
       console.error('❌ Error accessing microphone:', error);
-      setTranscript('Microphone access denied. Please allow microphone access.');
+      setTranscript('🚫 Microphone access denied. Please allow microphone access.');
       setTimeout(() => setTranscript(''), 5000);
       onListeningChange(false);
     }
@@ -199,6 +210,13 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
     if (mediaRecorderRef.current && mediaRecorderRef.current.state === 'recording') {
       mediaRecorderRef.current.stop();
     }
+    
+    // Clear silence timeout
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
+    }
+    
     onListeningChange(false);
   };
 
@@ -216,6 +234,11 @@ const EnhancedVoiceRecorder: React.FC<EnhancedVoiceRecorderProps> = ({
     if (animationRef.current) {
       cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
+    }
+    
+    if (silenceTimeoutRef.current) {
+      clearTimeout(silenceTimeoutRef.current);
+      silenceTimeoutRef.current = null;
     }
     
     setAudioLevel(0);

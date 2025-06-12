@@ -23,12 +23,49 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
     faceCount,
     isLoading, 
     startCamera, 
-    stopCamera 
+    stopCamera,
+    setDetectionCallback
   } = useFaceDetection();
 
   const [hasTriggeredGreeting, setHasTriggeredGreeting] = useState(false);
   const [greetingCooldown, setGreetingCooldown] = useState(false);
   const previousDetectionRef = useRef(false);
+  const greetingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  // Set up detection callback
+  useEffect(() => {
+    setDetectionCallback((detected: boolean, count: number) => {
+      console.log('📊 Face detection callback:', { detected, count });
+      onFaceDetected(detected, count);
+      
+      // Handle auto-greeting logic
+      if (detected && !previousDetectionRef.current && !hasTriggeredGreeting && !greetingCooldown && onAutoGreetingTriggered) {
+        console.log('🎉 NEW FACE DETECTED! Triggering auto-greeting...');
+        setHasTriggeredGreeting(true);
+        setGreetingCooldown(true);
+        
+        // Small delay to ensure face is stable
+        greetingTimeoutRef.current = setTimeout(() => {
+          console.log('🤖 Executing auto-greeting...');
+          onAutoGreetingTriggered();
+        }, 1000);
+        
+        // Reset greeting trigger after 45 seconds
+        setTimeout(() => {
+          setHasTriggeredGreeting(false);
+          console.log('🔄 Greeting trigger reset');
+        }, 45000);
+        
+        // Cooldown period of 15 seconds
+        setTimeout(() => {
+          setGreetingCooldown(false);
+          console.log('🟢 Greeting cooldown ended');
+        }, 15000);
+      }
+      
+      previousDetectionRef.current = detected;
+    });
+  }, [onFaceDetected, hasTriggeredGreeting, greetingCooldown, onAutoGreetingTriggered, setDetectionCallback]);
 
   useEffect(() => {
     if (autoStart) {
@@ -40,33 +77,14 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
     }
   }, [autoStart, startCamera]);
 
+  // Cleanup timeout on unmount
   useEffect(() => {
-    onFaceDetected(facesDetected, faceCount);
-    
-    // Trigger greeting only on new face detection (transition from false to true)
-    if (facesDetected && !previousDetectionRef.current && !hasTriggeredGreeting && !greetingCooldown && onAutoGreetingTriggered) {
-      console.log('🎉 NEW FACE DETECTED! Triggering auto-greeting...');
-      setHasTriggeredGreeting(true);
-      setGreetingCooldown(true);
-      
-      // Trigger greeting immediately
-      onAutoGreetingTriggered();
-      
-      // Reset greeting trigger after 30 seconds
-      setTimeout(() => {
-        setHasTriggeredGreeting(false);
-        console.log('🔄 Greeting trigger reset');
-      }, 30000);
-      
-      // Cooldown period of 10 seconds
-      setTimeout(() => {
-        setGreetingCooldown(false);
-        console.log('🟢 Greeting cooldown ended');
-      }, 10000);
-    }
-    
-    previousDetectionRef.current = facesDetected;
-  }, [facesDetected, faceCount, onFaceDetected, hasTriggeredGreeting, greetingCooldown, onAutoGreetingTriggered]);
+    return () => {
+      if (greetingTimeoutRef.current) {
+        clearTimeout(greetingTimeoutRef.current);
+      }
+    };
+  }, []);
 
   return (
     <Card className="w-full border-0 shadow-2xl bg-gradient-to-br from-blue-50 via-white to-green-50 overflow-hidden">
