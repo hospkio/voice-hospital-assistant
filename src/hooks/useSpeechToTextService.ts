@@ -1,24 +1,38 @@
-import axios from 'axios';
+
 import { useState } from 'react';
+
+interface STTResponse {
+  transcript: string;
+  confidence: number;
+  detectedLanguage: string;
+  success: boolean;
+}
 
 export const useSpeechToTextService = () => {
   const [isLoading, setIsLoading] = useState(false);
 
-  const speechToText = async (audioBlob: Blob, languageCode: string = 'en-US') => {
+  const speechToText = async (audioBlob: Blob, languageCode: string = 'en-US'): Promise<STTResponse> => {
     setIsLoading(true);
     
     try {
-      console.log('🎵 Sending audio to Google Speech-to-Text service...');
+      console.log('🎵 Sending audio to Google Speech-to-Text API...');
       
-      const formData = new FormData();
-      formData.append('audio', audioBlob);
-      formData.append('languageCode', languageCode);
+      // Get API key from secure storage and decode it
+      const encodedApiKey = localStorage.getItem('google_cloud_api_key');
+      if (!encodedApiKey) {
+        throw new Error('Google Cloud API key not found. Please configure it in Settings tab.');
+      }
+      
+      const apiKey = atob(encodedApiKey);
 
       // Convert audioBlob to base64
       const reader = new FileReader();
-      reader.readAsDataURL(audioBlob);
-      const audioBase64 = await new Promise((resolve) => {
-        reader.onloadend = () => resolve(reader.result.split(',')[1]);
+      const audioBase64 = await new Promise<string>((resolve) => {
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          resolve(result.split(',')[1]);
+        };
+        reader.readAsDataURL(audioBlob);
       });
 
       // Prepare the request payload for Google STT
@@ -27,34 +41,60 @@ export const useSpeechToTextService = () => {
           content: audioBase64,
         },
         config: {
-          encoding: 'LINEAR16', // Adjust based on your audio format
-          sampleRateHertz: 16000, // Adjust based on your audio sample rate
-          languageCode: languageCode,
+          encoding: 'WEBM_OPUS',
+          sampleRateHertz: 48000,
+          languageCode: languageCode === 'auto' ? 'en-US' : languageCode,
+          alternativeLanguageCodes: languageCode === 'auto' ? ['hi-IN', 'ml-IN', 'ta-IN', 'te-IN', 'kn-IN', 'mr-IN'] : [],
+          enableAutomaticPunctuation: true,
+          model: 'latest_long',
+          useEnhanced: true,
+          enableWordConfidence: true,
+          maxAlternatives: 3
         },
       };
 
-      // Make a request to Google Speech-to-Text API
-      const response = await axios.post(
-        `https://speech.googleapis.com/v1/speech:recognize?key=25b452d340469ccca367b4e6dfcf7beded7c8be6`, // Replace with your API key
-        requestBody,
+      console.log('Sending request to Google Speech-to-Text API...');
+
+      // Make request to Google Speech-to-Text API
+      const response = await fetch(
+        `https://speech.googleapis.com/v1/speech:recognize?key=${apiKey}`,
         {
+          method: 'POST',
           headers: {
             'Content-Type': 'application/json',
           },
+          body: JSON.stringify(requestBody),
         }
       );
 
-      console.log('✅ Google Speech-to-Text result:', response.data);
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error('Google STT API error:', errorData);
+        throw new Error(errorData.error?.message || `STT API error: ${response.status}`);
+      }
+
+      const data = await response.json();
+      console.log('✅ Google Speech-to-Text result:', data);
       
-      if (response.data && response.data.results.length > 0) {
-        const transcript = response.data.results.map(result => result.alternatives[0].transcript).join('\n');
+      if (data && data.results && data.results.length > 0) {
+        const result = data.results[0];
+        const transcript = result.alternatives[0].transcript;
+        const confidence = result.alternatives[0].confidence || 0.8;
+        
+        // Detect language from response or use provided
+        let detectedLanguage = languageCode;
+        if (languageCode === 'auto' && result.languageCode) {
+          detectedLanguage = result.languageCode;
+        }
+
         return {
           transcript,
-          confidence: response.data.results[0].alternatives[0].confidence || 0.8,
-          detectedLanguage: languageCode
+          confidence,
+          detectedLanguage,
+          success: true
         };
       } else {
-        throw new Error('Speech to text failed: No results returned');
+        throw new Error('No speech detected in audio');
       }
     } catch (error) {
       console.error('❌ Speech to text error:', error);

@@ -1,6 +1,6 @@
 
 import React from 'react';
-import { Volume2, Camera, MessageCircle, Calendar, Sparkles, Map, Building2, Stethoscope } from 'lucide-react';
+import { Volume2, Camera, MessageCircle, Calendar, Sparkles, Map, Building2, Stethoscope, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -11,6 +11,7 @@ import HospitalFloorMap from '@/components/HospitalFloorMap';
 import HospitalDataDisplay from '@/components/HospitalDataDisplay';
 import QuickActionsPanel from '@/components/QuickActionsPanel';
 import SessionStatusPanel from '@/components/SessionStatusPanel';
+import GoogleCloudCredentials from '@/components/GoogleCloudCredentials';
 
 interface MainKioskInterfaceProps {
   state: any;
@@ -79,7 +80,7 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
 
       {/* Modern Tab Interface */}
       <Tabs defaultValue="assistant" className="space-y-6">
-        <TabsList className="grid w-full grid-cols-2 md:grid-cols-4 h-20 bg-gradient-to-r from-blue-100 via-purple-100 to-green-100 rounded-2xl p-2 shadow-lg">
+        <TabsList className="grid w-full grid-cols-2 md:grid-cols-5 h-20 bg-gradient-to-r from-blue-100 via-purple-100 to-green-100 rounded-2xl p-2 shadow-lg">
           <TabsTrigger 
             value="assistant" 
             className="h-16 rounded-xl font-bold text-lg bg-white/50 hover:bg-white data-[state=active]:bg-white data-[state=active]:shadow-lg transition-all"
@@ -117,6 +118,16 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
             <div className="flex flex-col items-center space-y-1">
               <Calendar className="h-6 w-6" />
               <span>Appointments</span>
+            </div>
+          </TabsTrigger>
+
+          <TabsTrigger 
+            value="settings" 
+            className="h-16 rounded-xl font-bold text-lg bg-white/50 hover:bg-white data-[state=active]:bg-white data-[state=active]:shadow-lg transition-all"
+          >
+            <div className="flex flex-col items-center space-y-1">
+              <Settings className="h-6 w-6" />
+              <span>Settings</span>
             </div>
           </TabsTrigger>
         </TabsList>
@@ -273,6 +284,11 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Settings Tab */}
+        <TabsContent value="settings" className="space-y-6">
+          <GoogleCloudCredentials />
         </TabsContent>
       </Tabs>
     </main>
