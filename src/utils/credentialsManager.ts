@@ -15,12 +15,39 @@ interface GoogleCloudCredentials {
 
 const CREDENTIALS_KEY = 'google_cloud_credentials';
 
+const getDefaultCredentials = (): GoogleCloudCredentials => ({
+  apiKey: '',
+  projectId: '',
+  dialogflowCX: {
+    projectId: '',
+    location: 'us-central1',
+    agentId: ''
+  },
+  vision: {
+    apiKey: ''
+  }
+});
+
 export const credentialsManager = {
   // Save credentials to localStorage as JSON
   saveCredentials: (credentials: Partial<GoogleCloudCredentials>) => {
     try {
       const existing = credentialsManager.getCredentials();
-      const updated = { ...existing, ...credentials };
+      
+      // Deep merge to ensure nested objects are properly handled
+      const updated = {
+        ...existing,
+        ...credentials,
+        dialogflowCX: {
+          ...existing.dialogflowCX,
+          ...(credentials.dialogflowCX || {})
+        },
+        vision: {
+          ...existing.vision,
+          ...(credentials.vision || {})
+        }
+      };
+      
       const encoded = btoa(JSON.stringify(updated));
       localStorage.setItem(CREDENTIALS_KEY, encoded);
       console.log('✅ Credentials saved successfully');
@@ -36,35 +63,30 @@ export const credentialsManager = {
     try {
       const encoded = localStorage.getItem(CREDENTIALS_KEY);
       if (!encoded) {
-        return {
-          apiKey: '',
-          projectId: '',
-          dialogflowCX: {
-            projectId: '',
-            location: 'us-central1',
-            agentId: ''
-          },
-          vision: {
-            apiKey: ''
-          }
-        };
+        return getDefaultCredentials();
       }
+      
       const decoded = JSON.parse(atob(encoded));
-      return decoded;
-    } catch (error) {
-      console.error('❌ Failed to load credentials:', error);
-      return {
-        apiKey: '',
-        projectId: '',
+      
+      // Ensure the decoded object has the complete structure
+      const defaultCreds = getDefaultCredentials();
+      const merged = {
+        ...defaultCreds,
+        ...decoded,
         dialogflowCX: {
-          projectId: '',
-          location: 'us-central1',
-          agentId: ''
+          ...defaultCreds.dialogflowCX,
+          ...(decoded.dialogflowCX || {})
         },
         vision: {
-          apiKey: ''
+          ...defaultCreds.vision,
+          ...(decoded.vision || {})
         }
       };
+      
+      return merged;
+    } catch (error) {
+      console.error('❌ Failed to load credentials:', error);
+      return getDefaultCredentials();
     }
   },
 

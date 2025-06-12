@@ -28,12 +28,20 @@ export const useDialogflowCXService = () => {
       console.log('🤖 Sending to Dialogflow CX:', { query, sessionId, languageCode });
       
       const credentials = credentialsManager.getCredentials();
-      const projectId = credentials.dialogflowCX.projectId || credentials.projectId;
-      const location = credentials.dialogflowCX.location || 'us-central1';
-      const agentId = credentials.dialogflowCX.agentId;
+      
+      // Safely access nested properties with fallbacks
+      const projectId = credentials?.dialogflowCX?.projectId || credentials?.projectId || '';
+      const location = credentials?.dialogflowCX?.location || 'us-central1';
+      const agentId = credentials?.dialogflowCX?.agentId || '';
+      const apiKey = credentials?.apiKey || '';
 
-      if (!credentials.apiKey || !projectId || !agentId) {
+      if (!apiKey || !projectId || !agentId) {
         console.warn('⚠️ Dialogflow CX credentials incomplete, using fallback');
+        console.log('Available credentials:', { 
+          hasApiKey: !!apiKey, 
+          hasProjectId: !!projectId, 
+          hasAgentId: !!agentId 
+        });
         throw new Error('Dialogflow CX credentials not configured completely');
       }
 
@@ -56,7 +64,7 @@ export const useDialogflowCXService = () => {
       // Note: This will fail with 401 since API keys don't work with Dialogflow CX
       // The error is handled gracefully below
       const response = await fetch(
-        `https://dialogflow.googleapis.com/v3/${sessionPath}:detectIntent?key=${credentials.apiKey}`,
+        `https://dialogflow.googleapis.com/v3/${sessionPath}:detectIntent?key=${apiKey}`,
         {
           method: 'POST',
           headers: {
