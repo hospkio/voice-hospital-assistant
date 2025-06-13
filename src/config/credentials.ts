@@ -1,15 +1,15 @@
 
 // Hardcoded API credentials - Replace with your actual keys
 export const API_CREDENTIALS = {
-  apiKey: 'AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx', // Replace with your Google Cloud API key
-  projectId: 'your-project-id', // Replace with your Google Cloud project ID
+  apiKey: 'AIzaSyAUMuJMxBl9ph2ULMEeql9JNz_QN76d_w8', // Replace with your Google Cloud API key
+  projectId: 'spartan-cosmos-462009-j5', // Replace with your Google Cloud project ID
   dialogflowCX: {
-    projectId: 'your-dialogflow-project-id', // Replace with your Dialogflow CX project ID
+    projectId: 'spartan-cosmos-462009-j5', // Replace with your Dialogflow CX project ID
     location: 'us-central1',
-    agentId: 'your-agent-id' // Replace with your Dialogflow CX agent ID
+    agentId: '0647bca7-cdea-42ff-9303-db4b14113b91' // Replace with your Dialogflow CX agent ID
   },
   vision: {
-    apiKey: 'AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' // Replace with your Vision API key (optional)
+    apiKey: '084f3f3d3e4709297bcd50a6b730fe177a9fcd06' // Replace with your Vision API key (optional)
   }
 };
 
