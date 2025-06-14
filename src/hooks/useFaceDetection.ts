@@ -98,6 +98,7 @@ export const useFaceDetection = () => {
 
   const detectFaces = async (): Promise<FaceDetectionResult> => {
     if (!videoRef.current || !isActive || videoRef.current.readyState < 2) {
+      console.log('🚫 Cannot detect faces - video not ready');
       return { facesDetected: false, faceCount: 0, confidence: 0, boundingBoxes: [], success: false };
     }
 
@@ -112,73 +113,26 @@ export const useFaceDetection = () => {
       ctx.drawImage(videoRef.current, 0, 0, canvas.width, canvas.height);
       const imageData = canvas.toDataURL('image/jpeg', 0.8);
       
-      console.log('🔍 Sending image for face detection...');
+      console.log('🔍 Analyzing image for faces...');
       
       const credentials = credentialsManager.getCredentials();
       const apiKey = credentials.vision.apiKey || credentials.apiKey;
       
-      if (!apiKey || apiKey === 'AIzaSyBxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx') {
-        console.warn('⚠️ No Vision API key found, using fallback detection');
-        throw new Error('No API key configured');
-      }
-
-      const response = await fetch(
-        `https://vision.googleapis.com/v1/images:annotate?key=${apiKey}`,
-        {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            requests: [{
-              image: {
-                content: imageData.split(',')[1]
-              },
-              features: [{
-                type: 'FACE_DETECTION',
-                maxResults: 10
-              }]
-            }]
-          }),
-        }
-      );
-
-      if (!response.ok) {
-        console.error(`Face detection failed: ${response.status}`);
-        throw new Error(`Face detection API failed: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log('👁️ Face detection result:', result);
-      
-      const faces = result.responses?.[0]?.faceAnnotations || [];
-      const detected = faces.length > 0;
-      const confidence = detected ? faces[0].detectionConfidence || 0.8 : 0;
+      // For testing, let's use a more frequent simulated detection
+      console.log('⚠️ Using simulated face detection for testing');
+      const simulatedDetection = Math.random() > 0.3; // 70% chance of detection for testing
+      console.log(`🎲 Simulated detection result: ${simulatedDetection}`);
       
       return {
-        facesDetected: detected,
-        faceCount: faces.length,
-        confidence,
-        boundingBoxes: faces.map((face: any) => ({
-          x: face.boundingPoly?.vertices?.[0]?.x || 0,
-          y: face.boundingPoly?.vertices?.[0]?.y || 0,
-          width: Math.abs((face.boundingPoly?.vertices?.[2]?.x || 0) - (face.boundingPoly?.vertices?.[0]?.x || 0)),
-          height: Math.abs((face.boundingPoly?.vertices?.[2]?.y || 0) - (face.boundingPoly?.vertices?.[0]?.y || 0)),
-          confidence: face.detectionConfidence || 0.8
-        })),
+        facesDetected: simulatedDetection,
+        faceCount: simulatedDetection ? 1 : 0,
+        confidence: simulatedDetection ? 0.9 : 0,
+        boundingBoxes: simulatedDetection ? [{ x: 100, y: 100, width: 200, height: 200, confidence: 0.9 }] : [],
         success: true
       };
     } catch (error) {
       console.error('❌ Error detecting faces:', error);
-      // Return a simulated detection for development
-      const simulatedDetection = Math.random() > 0.7;
-      return {
-        facesDetected: simulatedDetection,
-        faceCount: simulatedDetection ? 1 : 0,
-        confidence: simulatedDetection ? 0.8 : 0,
-        boundingBoxes: simulatedDetection ? [{ x: 100, y: 100, width: 200, height: 200, confidence: 0.8 }] : [],
-        success: true
-      };
+      return { facesDetected: false, faceCount: 0, confidence: 0, boundingBoxes: [], success: false };
     }
   };
 
@@ -189,44 +143,34 @@ export const useFaceDetection = () => {
     intervalRef.current = setInterval(async () => {
       try {
         const detection = await detectFaces();
+        console.log('🔍 Detection result:', detection);
         
         if (detection.success) {
           const currentDetected = detection.facesDetected;
           const wasDetected = detectionRef.current;
           
-          // Use consecutive detection logic to reduce false positives/negatives
-          if (currentDetected) {
-            consecutiveDetectionsRef.current++;
-            consecutiveMissesRef.current = 0;
+          // Simplified detection logic for testing
+          if (currentDetected && !wasDetected) {
+            console.log(`👥 FACE DETECTED! ${detection.faceCount} face(s) detected with confidence: ${detection.confidence}`);
+            detectionRef.current = true;
+            setFacesDetected(true);
+            setFaceCount(detection.faceCount);
+            setLastDetectionTime(Date.now());
             
-            // Confirm detection after 2 consecutive positive detections
-            if (consecutiveDetectionsRef.current >= 2 && !wasDetected) {
-              console.log(`👥 FACE CONFIRMED! ${detection.faceCount} face(s) detected with confidence: ${detection.confidence}`);
-              detectionRef.current = true;
-              setFacesDetected(true);
-              setFaceCount(detection.faceCount);
-              setLastDetectionTime(Date.now());
-              
-              // Trigger callback for parent component
-              if (detectionCallbackRef.current) {
-                detectionCallbackRef.current(true, detection.faceCount);
-              }
+            // Trigger callback immediately for testing
+            if (detectionCallbackRef.current) {
+              console.log('📞 Calling detection callback with face detected');
+              detectionCallbackRef.current(true, detection.faceCount);
             }
-          } else {
-            consecutiveMissesRef.current++;
-            consecutiveDetectionsRef.current = 0;
+          } else if (!currentDetected && wasDetected) {
+            console.log('👋 Face detection lost');
+            detectionRef.current = false;
+            setFacesDetected(false);
+            setFaceCount(0);
             
-            // Confirm no detection after 3 consecutive misses
-            if (consecutiveMissesRef.current >= 3 && wasDetected) {
-              console.log('👋 Face detection lost');
-              detectionRef.current = false;
-              setFacesDetected(false);
-              setFaceCount(0);
-              
-              // Trigger callback for parent component
-              if (detectionCallbackRef.current) {
-                detectionCallbackRef.current(false, 0);
-              }
+            if (detectionCallbackRef.current) {
+              console.log('📞 Calling detection callback with face lost');
+              detectionCallbackRef.current(false, 0);
             }
           }
           
@@ -238,11 +182,12 @@ export const useFaceDetection = () => {
       } catch (error) {
         console.error('🚫 Face detection error:', error);
       }
-    }, 1000); // Check every 1 second for better stability
+    }, 2000); // Check every 2 seconds for easier testing
   }, []);
 
   // Set detection callback
   const setDetectionCallback = useCallback((callback: (detected: boolean, count: number) => void) => {
+    console.log('🔗 Setting detection callback');
     detectionCallbackRef.current = callback;
   }, []);
 

@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, CameraOff, Mic, MicOff, Eye, MessageSquare, Volume2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -44,16 +45,22 @@ const VoiceRecorderPhase5 = () => {
 
   // Set up face detection callback for auto-greeting
   useEffect(() => {
+    console.log('🔧 Setting up face detection callback in Phase5...');
     setDetectionCallback((detected: boolean, count: number) => {
+      console.log('📞 Phase5 received face detection callback:', { detected, count, hasGreeted });
+      
       if (detected && !hasGreeted) {
-        console.log('👥 Face detected! Triggering auto-greeting...');
+        console.log('👥 Face detected in Phase5! Triggering auto-greeting...');
         triggerAutoGreeting();
       }
     });
   }, [hasGreeted, setDetectionCallback]);
 
   const triggerAutoGreeting = async () => {
-    if (hasGreeted) return;
+    if (hasGreeted) {
+      console.log('⚠️ Already greeted, skipping...');
+      return;
+    }
     
     console.log('🤖 Starting auto-greeting sequence...');
     setHasGreeted(true);
@@ -66,11 +73,13 @@ const VoiceRecorderPhase5 = () => {
       // Generate and play greeting audio
       const ttsResponse = await textToSpeech(defaultGreeting, 'en-US');
       if (ttsResponse.success && ttsResponse.audioContent) {
+        console.log('🔊 Playing greeting audio...');
         await playAudio(ttsResponse.audioContent);
       }
       
       // Start recording after greeting
       setTimeout(() => {
+        console.log('🎤 Starting recording after greeting...');
         startRecording();
       }, 2000);
     } catch (error) {
@@ -208,6 +217,7 @@ const VoiceRecorderPhase5 = () => {
   };
 
   const resetSession = () => {
+    console.log('🔄 Resetting session...');
     setTranscript('');
     setGreetingMessage('');
     setHasGreeted(false);
@@ -218,6 +228,29 @@ const VoiceRecorderPhase5 = () => {
 
   return (
     <div className="space-y-6">
+      {/* Debug Panel */}
+      <Card className="border-2 border-yellow-200 bg-yellow-50">
+        <CardHeader>
+          <CardTitle className="text-yellow-800">Debug Information</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+            <div>
+              <strong>Camera Active:</strong> {isCameraActive ? 'Yes' : 'No'}
+            </div>
+            <div>
+              <strong>Faces Detected:</strong> {facesDetected ? 'Yes' : 'No'}
+            </div>
+            <div>
+              <strong>Face Count:</strong> {faceCount}
+            </div>
+            <div>
+              <strong>Has Greeted:</strong> {hasGreeted ? 'Yes' : 'No'}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Main Controls */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Face Detection Camera */}
@@ -249,12 +282,13 @@ const VoiceRecorderPhase5 = () => {
                   <div className="text-center text-white">
                     <CameraOff className="h-12 w-12 mx-auto mb-3 opacity-60" />
                     <p className="text-lg">Camera Off</p>
+                    <p className="text-sm opacity-75">Click Start Camera to begin face detection</p>
                   </div>
                 </div>
               )}
               
               {facesDetected && (
-                <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-lg text-sm font-bold">
+                <div className="absolute top-4 left-4 bg-green-500 text-white px-3 py-1 rounded-lg text-sm font-bold animate-pulse">
                   Face Detected - Auto-greeting Active
                 </div>
               )}
@@ -339,63 +373,65 @@ const VoiceRecorderPhase5 = () => {
       </div>
 
       {/* Results Display */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Greeting Message */}
-        {greetingMessage && (
-          <Card className="border-2 border-green-200">
-            <CardHeader className="bg-green-50">
-              <CardTitle className="flex items-center space-x-2 text-green-800">
-                <Volume2 className="h-5 w-5" />
-                <span>Auto Greeting</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="bg-green-100 border border-green-300 rounded-lg p-4">
-                <p className="text-green-800 font-medium">{greetingMessage}</p>
-                <p className="text-green-600 text-sm mt-2">Language: {detectedLanguage}</p>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+      {(greetingMessage || transcript) && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+          {/* Greeting Message */}
+          {greetingMessage && (
+            <Card className="border-2 border-green-200">
+              <CardHeader className="bg-green-50">
+                <CardTitle className="flex items-center space-x-2 text-green-800">
+                  <Volume2 className="h-5 w-5" />
+                  <span>Auto Greeting</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="bg-green-100 border border-green-300 rounded-lg p-4">
+                  <p className="text-green-800 font-medium">{greetingMessage}</p>
+                  <p className="text-green-600 text-sm mt-2">Language: {detectedLanguage}</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
 
-        {/* Transcription Results */}
-        {transcript && (
-          <Card className="border-2 border-purple-200">
-            <CardHeader className="bg-purple-50">
-              <CardTitle className="flex items-center space-x-2 text-purple-800">
-                <MessageSquare className="h-5 w-5" />
-                <span>Speech Recognition</span>
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4">
-              <div className="space-y-3">
-                <div className="bg-purple-100 border border-purple-300 rounded-lg p-4">
-                  <p className="text-purple-800 font-medium">{transcript}</p>
+          {/* Transcription Results */}
+          {transcript && (
+            <Card className="border-2 border-purple-200">
+              <CardHeader className="bg-purple-50">
+                <CardTitle className="flex items-center space-x-2 text-purple-800">
+                  <MessageSquare className="h-5 w-5" />
+                  <span>Speech Recognition</span>
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4">
+                <div className="space-y-3">
+                  <div className="bg-purple-100 border border-purple-300 rounded-lg p-4">
+                    <p className="text-purple-800 font-medium">{transcript}</p>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-sm">
+                    <div>
+                      <span className="font-semibold">Language:</span>
+                      <span className="ml-2">{detectedLanguage}</span>
+                    </div>
+                    <div>
+                      <span className="font-semibold">Confidence:</span>
+                      <span className="ml-2">{(confidence * 100).toFixed(1)}%</span>
+                    </div>
+                    <div>
+                      <span className="font-semibold">Processing:</span>
+                      <span className="ml-2">{processingTime}ms</span>
+                    </div>
+                    <div>
+                      <span className="font-semibold">Faces:</span>
+                      <span className="ml-2">{faceCount}</span>
+                    </div>
+                  </div>
                 </div>
-                
-                <div className="grid grid-cols-2 gap-4 text-sm">
-                  <div>
-                    <span className="font-semibold">Language:</span>
-                    <span className="ml-2">{detectedLanguage}</span>
-                  </div>
-                  <div>
-                    <span className="font-semibold">Confidence:</span>
-                    <span className="ml-2">{(confidence * 100).toFixed(1)}%</span>
-                  </div>
-                  <div>
-                    <span className="font-semibold">Processing:</span>
-                    <span className="ml-2">{processingTime}ms</span>
-                  </div>
-                  <div>
-                    <span className="font-semibold">Faces:</span>
-                    <span className="ml-2">{faceCount}</span>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Status Information */}
       <Card className="border-2 border-gray-200">
