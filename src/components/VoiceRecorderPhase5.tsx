@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useFaceDetection } from '@/hooks/useFaceDetection';
 import { useGoogleCloudServices } from '@/hooks/useGoogleCloudServices';
@@ -42,7 +41,11 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
     startRecording,
     stopRecording,
     resetTranscript
-  } = useAudioRecorder(speechToText);
+  } = useAudioRecorder(speechToText, {
+    autoStop: false, // Disable auto-stop behavior
+    silenceDuration: 10000, // If auto-stop were enabled, use 10 seconds
+    audioThreshold: 0.1 // Higher threshold for less sensitivity
+  });
 
   const greetings = {
     'en-US': 'Hello! Welcome to our hospital. How can I help you today?',
