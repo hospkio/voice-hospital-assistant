@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -25,14 +24,19 @@ const GoogleCloudCredentials = () => {
       console.error('Error loading credentials:', error);
       // Fallback to default structure if loading fails
       setCredentials({
+        googleCloudApiKey: '',
         apiKey: '',
         projectId: '',
+        dialogflowProjectId: '',
+        dialogflowAgentId: '',
+        dialogflowLanguageCode: 'en',
         dialogflowCX: {
           projectId: '',
           location: 'us-central1',
           agentId: ''
         },
         vision: {
+          enabled: true,
           apiKey: ''
         }
       });
@@ -80,14 +84,19 @@ const GoogleCloudCredentials = () => {
   const handleClear = () => {
     credentialsManager.clearCredentials();
     setCredentials({
+      googleCloudApiKey: '',
       apiKey: '',
       projectId: '',
+      dialogflowProjectId: '',
+      dialogflowAgentId: '',
+      dialogflowLanguageCode: 'en',
       dialogflowCX: {
         projectId: '',
         location: 'us-central1',
         agentId: ''
       },
       vision: {
+        enabled: true,
         apiKey: ''
       }
     });
