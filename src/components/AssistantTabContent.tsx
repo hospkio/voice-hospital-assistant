@@ -16,6 +16,7 @@ interface AssistantTabContentProps {
   onFaceDetected: (detected: boolean, count: number) => void;
   onQuickAction: (query: string) => void;
   onAutoGreetingTriggered: () => void;
+  faceDetectionEnabled: boolean;
 }
 
 const AssistantTabContent: React.FC<AssistantTabContentProps> = ({
@@ -25,7 +26,8 @@ const AssistantTabContent: React.FC<AssistantTabContentProps> = ({
   onListeningChange,
   onFaceDetected,
   onQuickAction,
-  onAutoGreetingTriggered
+  onAutoGreetingTriggered,
+  faceDetectionEnabled
 }) => {
   return (
     <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
@@ -59,6 +61,7 @@ const AssistantTabContent: React.FC<AssistantTabContentProps> = ({
             onFaceDetected={onFaceDetected}
             autoStart={state.autoInteractionEnabled}
             onAutoGreetingTriggered={onAutoGreetingTriggered}
+            faceDetectionEnabled={faceDetectionEnabled}
           />
         </div>
 
