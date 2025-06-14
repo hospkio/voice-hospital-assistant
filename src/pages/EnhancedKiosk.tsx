@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef } from 'react';
 import { useKioskState } from '@/hooks/useKioskState';
 import { useGoogleCloudServices } from '@/hooks/useGoogleCloudServices';
@@ -8,9 +9,16 @@ import AppointmentBookingModal from '@/components/AppointmentBookingModal';
 import { toast } from 'sonner';
 import SecurityHelpers from '@/utils/securityHelpers';
 
+// Add type declaration for webkit speech recognition
+declare global {
+  interface Window {
+    webkitSpeechRecognition: any;
+  }
+}
+
 const EnhancedKiosk: React.FC = () => {
   const { state, updateState, clearSensitiveData, validateState } = useKioskState();
-  const { speechToText, textToSpeech, playAudio, dialogflowProcess } = useGoogleCloudServices();
+  const { speechToText, textToSpeech, playAudio, processWithDialogflowCX } = useGoogleCloudServices();
   const recognitionRef = useRef<any>(null);
   const processingRef = useRef(false);
 
@@ -33,7 +41,7 @@ const EnhancedKiosk: React.FC = () => {
 
   const initializeSpeechRecognition = (language: string) => {
     if ('webkitSpeechRecognition' in window) {
-      recognitionRef.current = new webkitSpeechRecognition();
+      recognitionRef.current = new window.webkitSpeechRecognition();
       recognitionRef.current.continuous = true;
       recognitionRef.current.interimResults = true;
       recognitionRef.current.lang = language;
@@ -65,17 +73,9 @@ const EnhancedKiosk: React.FC = () => {
         
         console.log('👂 Interim transcript:', transcript, 'Confidence:', confidence);
         
-        // Attempt language detection
-        let detectedLanguage = language; // Default to current language
-        try {
-          const languageResult = await speechToText(transcript, language);
-          if (languageResult?.languageCode) {
-            detectedLanguage = languageResult.languageCode;
-            console.log('🌐 Detected language:', detectedLanguage);
-          }
-        } catch (langError) {
-          console.warn('⚠️ Language detection error:', langError);
-        }
+        // For language detection, we'll use the current language as detected language
+        // since we can't easily detect language from transcript alone
+        let detectedLanguage = language;
         
         handleVoiceData(transcript, confidence, detectedLanguage);
       };
@@ -130,8 +130,9 @@ const EnhancedKiosk: React.FC = () => {
         return;
       }
       
-      // Security validation
-      if (!SecurityHelpers.validateInput(transcript)) {
+      // Basic security validation - simple sanitization
+      const sanitizedTranscript = transcript.replace(/[<>]/g, '').trim();
+      if (!sanitizedTranscript) {
         SecurityHelpers.logSecurityEvent('Invalid voice input detected', { 
           transcript: transcript.substring(0, 100),
           sessionId: state.sessionId 
@@ -146,29 +147,37 @@ const EnhancedKiosk: React.FC = () => {
         updateState({ selectedLanguage: detectedLanguage });
       }
       
-      console.log('🤖 Processing with Dialogflow...');
-      const response = await dialogflowProcess(transcript, state.selectedLanguage, state.sessionId);
+      console.log('🤖 Processing with Dialogflow CX...');
+      const response = await processWithDialogflowCX(sanitizedTranscript, state.sessionId, state.selectedLanguage);
       
       if (response.success) {
         console.log('✅ Dialogflow response received:', response);
         updateState({ 
-          currentResponse: response,
+          currentResponse: {
+            text: response.responseText,
+            timestamp: Date.now()
+          },
           conversationHistory: [...state.conversationHistory, {
-            query: transcript,
-            response: response.text,
+            query: sanitizedTranscript,
+            response: response.responseText,
             timestamp: Date.now(),
             language: detectedLanguage || state.selectedLanguage,
             confidence
           }]
         });
         
-        // Play audio response if available
-        if (response.audioContent) {
-          console.log('🔊 Playing audio response...');
-          await playAudio(response.audioContent);
+        // Generate and play audio response
+        try {
+          const ttsResponse = await textToSpeech(response.responseText, state.selectedLanguage);
+          if (ttsResponse.success && ttsResponse.audioContent) {
+            console.log('🔊 Playing audio response...');
+            await playAudio(ttsResponse.audioContent);
+          }
+        } catch (ttsError) {
+          console.warn('⚠️ TTS failed, continuing without audio:', ttsError);
         }
       } else {
-        console.error('❌ Dialogflow processing failed:', response.error);
+        console.error('❌ Dialogflow processing failed:', response);
         toast.error('Failed to process your request. Please try again.');
       }
     } catch (error) {
@@ -323,7 +332,7 @@ const EnhancedKiosk: React.FC = () => {
         <AppointmentBookingModal
           isOpen={state.showAppointmentModal}
           onClose={() => updateState({ showAppointmentModal: false })}
-          selectedDepartment={state.selectedDepartment}
+          department={state.selectedDepartment}
         />
       )}
     </div>

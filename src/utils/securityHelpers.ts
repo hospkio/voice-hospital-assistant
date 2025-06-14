@@ -43,6 +43,25 @@ export class SecurityHelpers {
       .trim();
   }
 
+  // Input validation
+  static validateInput(input: string): boolean {
+    if (!input || typeof input !== 'string') {
+      return false;
+    }
+
+    // Check for suspicious patterns
+    if (this.detectSuspiciousActivity(input)) {
+      return false;
+    }
+
+    // Check length
+    if (input.length > 1000) {
+      return false;
+    }
+
+    return true;
+  }
+
   // Phone number validation
   static validatePhoneNumber(phone: string): boolean {
     const phoneRegex = /^\+?[\d\s\-\(\)]{10,15}$/;

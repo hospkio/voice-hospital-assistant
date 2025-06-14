@@ -6,6 +6,7 @@ interface STTResponse {
   transcript: string;
   confidence: number;
   detectedLanguage: string;
+  languageCode?: string; // Add this property
   success: boolean;
 }
 
@@ -87,6 +88,7 @@ export const useSpeechToTextService = () => {
           transcript,
           confidence,
           detectedLanguage,
+          languageCode: detectedLanguage,
           success: true
         };
       } else {
