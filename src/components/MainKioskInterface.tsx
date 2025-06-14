@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import AssistantTabContent from '@/components/AssistantTabContent';
@@ -41,6 +42,12 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
   selectedLanguage
 }) => {
   const [activeTab, setActiveTab] = useState('assistant');
+  const [selectedDepartment, setSelectedDepartment] = useState('');
+
+  const handleDepartmentSelect = (department: string) => {
+    setSelectedDepartment(department);
+    onDepartmentSelect(department);
+  };
 
   const renderTabContent = () => {
     switch (activeTab) {
@@ -62,13 +69,23 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
         return <VoiceRecorderPhase5 selectedLanguage={selectedLanguage} />;
 
       case 'departments':
-        return <DepartmentsTabContent onDepartmentSelect={onDepartmentSelect} />;
+        return (
+          <DepartmentsTabContent 
+            selectedDepartment={selectedDepartment}
+            onDepartmentSelect={handleDepartmentSelect} 
+          />
+        );
 
       case 'appointments':
         return <AppointmentsTabContent onShowAppointmentModal={onShowAppointmentModal} />;
 
       case 'map':
-        return <MapTabContent />;
+        return (
+          <MapTabContent 
+            selectedDepartment={selectedDepartment}
+            onDepartmentSelect={handleDepartmentSelect}
+          />
+        );
 
       case 'settings':
         return (
