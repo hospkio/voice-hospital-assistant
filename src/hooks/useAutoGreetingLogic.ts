@@ -44,12 +44,16 @@ export const useAutoGreetingLogic = ({
     resetSession
   });
 
-  // Set up detection callback
+  // Set up detection callback - only once when conditions are met
   useEffect(() => {
-    if (!faceDetectionEnabled || !autoInteractionEnabled) {
+    const isFullyEnabled = faceDetectionEnabled && autoInteractionEnabled;
+    
+    if (!isFullyEnabled) {
       console.log('🚫 Auto-greeting disabled, resetting session');
-      resetSession();
-      callbackSetRef.current = false;
+      if (callbackSetRef.current) {
+        resetSession();
+        callbackSetRef.current = false;
+      }
       setState(prev => ({
         ...prev,
         greetingMessage: !faceDetectionEnabled ? 'Face detection is disabled' : 
@@ -59,7 +63,7 @@ export const useAutoGreetingLogic = ({
     }
 
     if (callbackSetRef.current) {
-      console.log('🔗 Callback already set, skipping');
+      console.log('🔗 Callback already set, skipping setup');
       return;
     }
 
@@ -67,14 +71,6 @@ export const useAutoGreetingLogic = ({
     callbackSetRef.current = true;
     setDetectionCallback(handleFaceDetection);
   }, [faceDetectionEnabled, autoInteractionEnabled, setDetectionCallback, handleFaceDetection, resetSession, setState]);
-
-  // Reset when settings change
-  useEffect(() => {
-    if (!faceDetectionEnabled || !autoInteractionEnabled) {
-      resetSession();
-      callbackSetRef.current = false;
-    }
-  }, [faceDetectionEnabled, autoInteractionEnabled, resetSession]);
 
   // Manual reset function
   const resetGreeting = () => {

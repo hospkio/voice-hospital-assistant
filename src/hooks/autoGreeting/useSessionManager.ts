@@ -1,5 +1,5 @@
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { AUTO_GREETING_CONSTANTS, greetings } from './constants';
 import { AutoGreetingState, SessionRefs } from './types';
 import { useGoogleCloudServices } from '@/hooks/useGoogleCloudServices';
@@ -27,12 +27,14 @@ export const useSessionManager = ({
   });
 
   const { textToSpeech, playAudio } = useGoogleCloudServices();
+  const greetingInProgressRef = useRef(false);
 
   const resetSession = useCallback(() => {
     console.log('🔄 Resetting greeting session');
     clearAllTimers();
     sessionRefs.sessionActiveRef.current = false;
     sessionRefs.faceDetectedRef.current = false;
+    greetingInProgressRef.current = false;
     setState({
       greetingMessage: '',
       hasGreeted: false,
@@ -42,10 +44,13 @@ export const useSessionManager = ({
   }, [clearAllTimers, sessionRefs]);
 
   const startNewSession = useCallback(async () => {
-    if (sessionRefs.sessionActiveRef.current) {
-      console.log('⚠️ Session already active, skipping greeting');
+    if (sessionRefs.sessionActiveRef.current || greetingInProgressRef.current) {
+      console.log('⚠️ Session already active or greeting in progress, skipping');
       return;
     }
+
+    // Prevent multiple simultaneous greetings
+    greetingInProgressRef.current = true;
 
     console.log('🎉 Starting new user session - triggering greeting');
     sessionRefs.sessionActiveRef.current = true;
@@ -70,6 +75,8 @@ export const useSessionManager = ({
       console.log('✅ Greeting played successfully');
     } catch (error) {
       console.error('❌ Error playing greeting:', error);
+    } finally {
+      greetingInProgressRef.current = false;
     }
 
     sessionTimeoutRef.current = setTimeout(() => {

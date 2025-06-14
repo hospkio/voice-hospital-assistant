@@ -1,5 +1,5 @@
 
-import { useCallback } from 'react';
+import { useCallback, useRef } from 'react';
 import { AUTO_GREETING_CONSTANTS } from './constants';
 import { SessionRefs } from './types';
 
@@ -17,15 +17,31 @@ export const useFaceDetectionHandler = ({
   resetSession
 }: UseFaceDetectionHandlerProps) => {
   
+  const lastProcessedDetectionRef = useRef<{ detected: boolean; timestamp: number }>({
+    detected: false,
+    timestamp: 0
+  });
+
   const handleFaceDetection = useCallback((detected: boolean, count: number) => {
+    const now = Date.now();
+    const lastProcessed = lastProcessedDetectionRef.current;
+    
+    // Debounce: ignore rapid fire detections within 500ms
+    if (now - lastProcessed.timestamp < 500 && detected === lastProcessed.detected) {
+      return;
+    }
+    
+    lastProcessedDetectionRef.current = { detected, timestamp: now };
+    
     const wasDetected = sessionRefs.faceDetectedRef.current;
     sessionRefs.faceDetectedRef.current = detected;
 
-    console.log('👥 Face detection:', { 
+    console.log('👥 Face detection (debounced):', { 
       detected, 
       count, 
       wasDetected, 
-      sessionActive: sessionRefs.sessionActiveRef.current
+      sessionActive: sessionRefs.sessionActiveRef.current,
+      timeSinceLastProcess: now - lastProcessed.timestamp
     });
 
     // Clear reset timer if face is detected
@@ -54,7 +70,7 @@ export const useFaceDetectionHandler = ({
         resetSession();
       }, AUTO_GREETING_CONSTANTS.FACE_LOST_RESET_DELAY);
     }
-  }, [sessionRefs, resetTimeoutRef, startNewSession, resetSession]);
+  }, []); // Empty dependency array - callback never changes
 
   return { handleFaceDetection };
 };
