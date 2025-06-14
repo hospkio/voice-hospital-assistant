@@ -1,12 +1,13 @@
 
 import React, { useState } from 'react';
-import { ArrowLeft, Mic, MessageSquare, Brain, Database } from 'lucide-react';
+import { ArrowLeft, Mic, MessageSquare, Brain, Database, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import VoiceRecorderPhase1 from '@/components/VoiceRecorderPhase1';
 import VoiceRecorderPhase2 from '@/components/VoiceRecorderPhase2';
 import VoiceRecorderPhase3 from '@/components/VoiceRecorderPhase3';
+import VoiceRecorderPhase5 from '@/components/VoiceRecorderPhase5';
 
 const VoiceTestPage = () => {
   const navigate = useNavigate();
@@ -27,7 +28,7 @@ const VoiceTestPage = () => {
         {/* Phase Progress */}
         <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
           <h2 className="text-blue-800 font-semibold text-xl mb-3">Development Phases</h2>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 text-sm">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-4 text-sm">
             <div className="bg-green-100 border border-green-300 rounded-lg p-4">
               <div className="flex items-center space-x-2 mb-2">
                 <Mic className="h-5 w-5 text-green-600" />
@@ -67,12 +68,22 @@ const VoiceTestPage = () => {
               <p className="text-orange-700">⏳ Text-to-speech output</p>
               <p className="text-orange-700">⏳ Complete integration</p>
             </div>
+
+            <div className="bg-teal-100 border border-teal-300 rounded-lg p-4">
+              <div className="flex items-center space-x-2 mb-2">
+                <Eye className="h-5 w-5 text-teal-600" />
+                <span className="font-semibold text-teal-800">Phase 5: Face Detection</span>
+              </div>
+              <p className="text-teal-700">🔄 Google Vision API</p>
+              <p className="text-teal-700">🔄 Auto language greeting</p>
+              <p className="text-teal-700">🔄 Smart interaction</p>
+            </div>
           </div>
         </div>
 
         {/* Testing Interface */}
         <Tabs value={activePhase} onValueChange={setActivePhase}>
-          <TabsList className="grid w-full grid-cols-3">
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="phase1" className="flex items-center space-x-2">
               <Mic className="h-4 w-4" />
               <span>Phase 1</span>
@@ -84,6 +95,10 @@ const VoiceTestPage = () => {
             <TabsTrigger value="phase3" className="flex items-center space-x-2">
               <Brain className="h-4 w-4" />
               <span>Phase 3</span>
+            </TabsTrigger>
+            <TabsTrigger value="phase5" className="flex items-center space-x-2">
+              <Eye className="h-4 w-4" />
+              <span>Phase 5</span>
             </TabsTrigger>
           </TabsList>
 
@@ -124,6 +139,19 @@ const VoiceTestPage = () => {
               </div>
             </div>
             <VoiceRecorderPhase3 />
+          </TabsContent>
+
+          <TabsContent value="phase5" className="space-y-6">
+            <div className="bg-teal-50 border border-teal-200 rounded-lg p-6">
+              <h3 className="text-teal-800 font-semibold text-lg mb-3">Phase 5: Face Detection with Auto Language Greeting</h3>
+              <div className="space-y-2 text-teal-700 mb-4">
+                <p>• Google Vision API face detection</p>
+                <p>• Automatic greeting when face detected</p>
+                <p>• Language detection from speech and greeting accordingly</p>
+                <p>• Complete voice + vision integration</p>
+              </div>
+            </div>
+            <VoiceRecorderPhase5 />
           </TabsContent>
         </Tabs>
 
