@@ -22,13 +22,13 @@ export const useWhatsAppService = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   // Enhanced input validation
-  private validatePhoneNumber = (phone: string): boolean => {
+  const validatePhoneNumber = (phone: string): boolean => {
     // Basic phone number validation - adjust regex as needed
     const phoneRegex = /^\+?[\d\s\-\(\)]{10,15}$/;
     return phoneRegex.test(phone);
   };
 
-  private sanitizeInput = (input: string): string => {
+  const sanitizeInput = (input: string): string => {
     return input.replace(/[<>]/g, '').trim(); // Basic XSS prevention
   };
 
@@ -42,17 +42,17 @@ export const useWhatsAppService = () => {
         return false;
       }
 
-      if (!this.validatePhoneNumber(booking.phoneNumber)) {
+      if (!validatePhoneNumber(booking.phoneNumber)) {
         console.error('Invalid phone number format');
         return false;
       }
 
       // Sanitize inputs
       const sanitizedBooking = {
-        patientName: this.sanitizeInput(booking.patientName),
+        patientName: sanitizeInput(booking.patientName),
         phoneNumber: booking.phoneNumber.replace(/[^\d\+]/g, ''), // Keep only digits and +
-        department: this.sanitizeInput(booking.department),
-        doctorName: booking.doctorName ? this.sanitizeInput(booking.doctorName) : undefined,
+        department: sanitizeInput(booking.department),
+        doctorName: booking.doctorName ? sanitizeInput(booking.doctorName) : undefined,
         appointmentDate: booking.appointmentDate,
         appointmentTime: booking.appointmentTime
       };
