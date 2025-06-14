@@ -66,7 +66,12 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
         );
 
       case 'voice-test':
-        return <VoiceRecorderPhase5 selectedLanguage={selectedLanguage} />;
+        return (
+          <VoiceRecorderPhase5 
+            selectedLanguage={selectedLanguage} 
+            faceDetectionEnabled={faceDetectionEnabled}
+          />
+        );
 
       case 'departments':
         return (
