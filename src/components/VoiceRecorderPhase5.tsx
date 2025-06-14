@@ -158,12 +158,10 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
         await playAudio(ttsResponse.audioContent);
       }
       
-      if (faceDetectionEnabled && autoInteractionEnabled) {
-        setTimeout(() => {
-          console.log('🎤 Starting recording after greeting...');
-          startRecording();
-        }, 2000);
-      }
+      // REMOVED: Automatic recording trigger after greeting
+      // Users must now manually press the microphone button to start voice interaction
+      console.log('✅ Auto-greeting completed. User must manually press microphone to start voice interaction.');
+      
     } catch (error) {
       console.error('Error in auto-greeting:', error);
     }
