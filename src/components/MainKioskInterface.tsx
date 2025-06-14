@@ -1,11 +1,11 @@
 import React, { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import AssistantTabContent from '@/components/kiosk/AssistantTabContent';
+import AssistantTabContent from '@/components/AssistantTabContent';
 import VoiceRecorderPhase5 from '@/components/VoiceRecorderPhase5';
-import DepartmentsTabContent from '@/components/kiosk/DepartmentsTabContent';
-import AppointmentsTabContent from '@/components/kiosk/AppointmentsTabContent';
-import MapTabContent from '@/components/kiosk/MapTabContent';
-import Settings from '@/components/kiosk/Settings';
+import DepartmentsTabContent from '@/components/DepartmentsTabContent';
+import AppointmentsTabContent from '@/components/AppointmentsTabContent';
+import MapTabContent from '@/components/MapTabContent';
+import Settings from '@/pages/Settings';
 
 interface MainKioskInterfaceProps {
   state: any;
