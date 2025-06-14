@@ -31,7 +31,7 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
     startCamera, 
     stopCamera,
     setDetectionCallback
-  } = useFaceDetection(faceDetectionEnabled); // Pass faceDetectionEnabled to control auto-start
+  } = useFaceDetection(faceDetectionEnabled); // Only auto-start if face detection is enabled
 
   const {
     isRecording,
@@ -45,9 +45,9 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
     stopRecording,
     resetTranscript
   } = useAudioRecorder(speechToText, {
-    autoStop: false, // Disable auto-stop behavior
-    silenceDuration: 10000, // If auto-stop were enabled, use 10 seconds
-    audioThreshold: 0.1 // Higher threshold for less sensitivity
+    autoStop: false,
+    silenceDuration: 10000,
+    audioThreshold: 0.1
   });
 
   const greetings = {
@@ -60,13 +60,23 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
   // Set up face detection callback for auto-greeting - only if face detection is enabled
   useEffect(() => {
     if (!faceDetectionEnabled) {
-      console.log('🚫 Face detection disabled, skipping callback setup');
+      console.log('🚫 Face detection disabled in Phase5, skipping callback setup');
+      
+      // Reset greeting state when face detection is disabled
+      setHasGreeted(false);
+      setGreetingMessage('Face detection is disabled');
       return;
     }
 
     console.log('🔧 Setting up face detection callback in Phase5...');
     setDetectionCallback((detected: boolean, count: number) => {
-      console.log('📞 Phase5 received face detection callback:', { detected, count, hasGreeted, selectedLanguage, faceDetectionEnabled });
+      console.log('📞 Phase5 received face detection callback:', { 
+        detected, 
+        count, 
+        hasGreeted, 
+        selectedLanguage, 
+        faceDetectionEnabled 
+      });
       
       if (detected && !hasGreeted && faceDetectionEnabled) {
         console.log('👥 Face detected in Phase5! Triggering auto-greeting...');
@@ -121,17 +131,25 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
     if (!faceDetectionEnabled) {
       console.log('🔄 Face detection disabled, resetting greeting state...');
       setHasGreeted(false);
-      setGreetingMessage('');
+      setGreetingMessage('Face detection is disabled');
     }
   }, [faceDetectionEnabled]);
+
+  const handleStartCamera = () => {
+    if (faceDetectionEnabled) {
+      startCamera();
+    } else {
+      console.log('🚫 Face detection disabled, cannot start camera');
+    }
+  };
 
   return (
     <div className="space-y-6">
       <DebugPanel
-        isCameraActive={isCameraActive}
+        isCameraActive={isCameraActive && faceDetectionEnabled}
         facesDetected={faceDetectionEnabled ? facesDetected : false}
         faceCount={faceDetectionEnabled ? faceCount : 0}
-        hasGreeted={hasGreeted}
+        hasGreeted={hasGreeted && faceDetectionEnabled}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -141,7 +159,7 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
           facesDetected={faceDetectionEnabled ? facesDetected : false}
           faceCount={faceDetectionEnabled ? faceCount : 0}
           cameraLoading={cameraLoading}
-          startCamera={faceDetectionEnabled ? startCamera : () => console.log('🚫 Face detection disabled')}
+          startCamera={handleStartCamera}
           stopCamera={stopCamera}
         />
 

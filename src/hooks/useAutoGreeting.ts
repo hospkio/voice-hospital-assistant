@@ -11,10 +11,21 @@ export const useAutoGreeting = ({ onAutoGreetingTriggered }: UseAutoGreetingProp
   const previousDetectionRef = useRef(false);
   const greetingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   const lastGreetingTimeRef = useRef<number>(0);
-  const callbackSetRef = useRef(false);
 
   const handleFaceDetection = useCallback((detected: boolean, count: number) => {
-    console.log('🎯 Face detection handler called:', { detected, count, previousDetection: previousDetectionRef.current, hasTriggeredGreeting, greetingCooldown });
+    // If no callback is provided, don't process face detection
+    if (!onAutoGreetingTriggered) {
+      console.log('🚫 No auto-greeting callback provided, skipping face detection handling');
+      return;
+    }
+
+    console.log('🎯 Face detection handler called:', { 
+      detected, 
+      count, 
+      previousDetection: previousDetectionRef.current, 
+      hasTriggeredGreeting, 
+      greetingCooldown 
+    });
     
     const currentTime = Date.now();
     const timeSinceLastGreeting = currentTime - lastGreetingTimeRef.current;
@@ -22,7 +33,7 @@ export const useAutoGreeting = ({ onAutoGreetingTriggered }: UseAutoGreetingProp
     // Check if this is a NEW face detection (transition from false to true)
     const isNewDetection = detected && !previousDetectionRef.current;
     
-    if (isNewDetection && !hasTriggeredGreeting && !greetingCooldown && onAutoGreetingTriggered) {
+    if (isNewDetection && !hasTriggeredGreeting && !greetingCooldown) {
       if (timeSinceLastGreeting > 30000) {
         console.log('🎉 NEW FACE DETECTED! Triggering auto-greeting...');
         setHasTriggeredGreeting(true);
@@ -51,20 +62,29 @@ export const useAutoGreeting = ({ onAutoGreetingTriggered }: UseAutoGreetingProp
     previousDetectionRef.current = detected;
   }, [hasTriggeredGreeting, greetingCooldown, onAutoGreetingTriggered]);
 
-  // Reset callback reference on unmount
+  // Reset states when callback is removed
+  useEffect(() => {
+    if (!onAutoGreetingTriggered) {
+      console.log('🔄 Auto-greeting callback removed, resetting states...');
+      setHasTriggeredGreeting(false);
+      setGreetingCooldown(false);
+      previousDetectionRef.current = false;
+      lastGreetingTimeRef.current = 0;
+    }
+  }, [onAutoGreetingTriggered]);
+
+  // Cleanup on unmount
   useEffect(() => {
     return () => {
       if (greetingTimeoutRef.current) {
         clearTimeout(greetingTimeoutRef.current);
       }
-      callbackSetRef.current = false;
     };
   }, []);
 
   return {
     hasTriggeredGreeting,
     greetingCooldown,
-    handleFaceDetection,
-    callbackSetRef
+    handleFaceDetection
   };
 };

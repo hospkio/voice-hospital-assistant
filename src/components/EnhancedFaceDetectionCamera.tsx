@@ -33,10 +33,10 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
     startCamera, 
     stopCamera,
     setDetectionCallback
-  } = useFaceDetection(autoStart && faceDetectionEnabled);
+  } = useFaceDetection(autoStart && faceDetectionEnabled); // Only auto-start if enabled
 
   const { greetingCooldown, handleFaceDetection } = useAutoGreeting({
-    onAutoGreetingTriggered
+    onAutoGreetingTriggered: faceDetectionEnabled ? onAutoGreetingTriggered : undefined
   });
 
   const callbackSetupRef = useRef(false);
@@ -58,14 +58,21 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
     }
   }, [onFaceDetected, handleFaceDetection, faceDetectionEnabled]);
 
-  // Set up detection callback only once and when face detection is enabled
+  // Set up detection callback only when face detection is enabled
   useEffect(() => {
     if (!faceDetectionEnabled) {
-      // Stop camera if face detection is disabled
+      console.log('🚫 Face detection disabled, stopping camera and resetting callback...');
+      
+      // Stop camera if it's running
       if (isActive) {
         stopCamera();
       }
+      
+      // Reset callback setup flag
       callbackSetupRef.current = false;
+      
+      // Ensure parent knows there are no faces
+      onFaceDetected(false, 0);
       return;
     }
 
@@ -75,7 +82,7 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
     callbackSetupRef.current = true;
     
     setDetectionCallback(combinedCallback);
-  }, [combinedCallback, setDetectionCallback, faceDetectionEnabled, isActive, stopCamera]);
+  }, [combinedCallback, setDetectionCallback, faceDetectionEnabled, isActive, stopCamera, onFaceDetected]);
 
   const handleCameraToggle = () => {
     if (!faceDetectionEnabled) {
