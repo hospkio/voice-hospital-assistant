@@ -30,7 +30,7 @@ export const defaultCredentials: Credentials = {
     location: 'global'
   },
   vision: {
-    enabled: false,
+    enabled: true,
     apiKey: '' // Add default for vision apiKey
   }
 };

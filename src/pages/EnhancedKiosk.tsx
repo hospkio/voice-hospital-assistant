@@ -16,6 +16,7 @@ const EnhancedKiosk = () => {
   const { textToSpeech, playAudio } = useGoogleCloudServices();
   const greetingTriggeredRef = useRef(false);
   const lastGreetingTimeRef = useRef(0);
+  const callbackSetupRef = useRef(false);
 
   // Welcome message on load
   useEffect(() => {
@@ -210,14 +211,6 @@ const EnhancedKiosk = () => {
     });
   };
 
-  const handleFaceDetection = (detected: boolean, count: number) => {
-    updateState({ facesDetected: detected, faceCount: count });
-    
-    if (detected) {
-      console.log(`👥 FACE DETECTION: ${count} face(s) detected`);
-    }
-  };
-
   const handleQuickAction = async (query: string) => {
     console.log('⚡ Quick action triggered:', query);
     await handleVoiceInput(query, 1.0, state.selectedLanguage);
@@ -226,6 +219,17 @@ const EnhancedKiosk = () => {
   const handleDepartmentSelect = (department: string) => {
     updateState({ selectedDepartment: department });
     handleQuickAction(`Tell me about ${department} department and show me directions`);
+  };
+
+  const handleFaceDetection = (detected: boolean, count: number) => {
+    console.log(`👥 MAIN KIOSK - Face detection callback: detected=${detected}, count=${count}`);
+    updateState({ facesDetected: detected, faceCount: count });
+    
+    if (detected) {
+      console.log(`👥 FACE DETECTION: ${count} face(s) detected - triggering auto greeting`);
+      // Trigger auto greeting immediately when face detected
+      handleAutoGreeting();
+    }
   };
 
   return (

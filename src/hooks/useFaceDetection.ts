@@ -19,6 +19,7 @@ export const useFaceDetection = (autoStart: boolean = true) => {
   const faceDetectionServiceRef = useRef(new FaceDetectionService(cameraServiceRef.current));
   const detectionManagerRef = useRef(new DetectionManager(faceDetectionServiceRef.current));
   const autoStartedRef = useRef(false);
+  const callbackSetRef = useRef(false);
 
   const startCamera = async () => {
     if (!videoRef.current) return;
@@ -34,6 +35,7 @@ export const useFaceDetection = (autoStart: boolean = true) => {
       
       // Delay starting detection to ensure video is fully ready
       setTimeout(() => {
+        console.log('🎯 Starting face detection after camera ready...');
         detectionManagerRef.current.startDetection();
       }, 1000);
       
@@ -56,6 +58,8 @@ export const useFaceDetection = (autoStart: boolean = true) => {
       isLoading: false,
       lastDetectionTime: 0
     });
+    
+    callbackSetRef.current = false;
   }, []);
 
   const detectFaces = async () => {
@@ -63,8 +67,16 @@ export const useFaceDetection = (autoStart: boolean = true) => {
   };
 
   const setDetectionCallback = useCallback((callback: DetectionCallback) => {
-    console.log('🔗 Setting detection callback');
+    if (callbackSetRef.current) {
+      console.log('🔄 Callback already set, skipping...');
+      return;
+    }
+    
+    console.log('🔗 Setting NEW detection callback');
+    callbackSetRef.current = true;
+    
     detectionManagerRef.current.setDetectionCallback((detected: boolean, count: number) => {
+      console.log('📞 Detection manager callback triggered:', { detected, count });
       setState(prev => ({
         ...prev,
         facesDetected: detected,

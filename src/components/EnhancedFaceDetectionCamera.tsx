@@ -1,5 +1,5 @@
 
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { useFaceDetection } from '@/hooks/useFaceDetection';
 import { useAutoGreeting } from '@/hooks/useAutoGreeting';
@@ -37,11 +37,17 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
     onAutoGreetingTriggered
   });
 
-  // Set up detection callback
+  const callbackSetupRef = useRef(false);
+
+  // Set up detection callback only once
   useEffect(() => {
-    console.log('🔧 Setting up face detection callback...');
+    if (callbackSetupRef.current) return;
+    
+    console.log('🔧 Setting up face detection callback in EnhancedFaceDetectionCamera...');
+    callbackSetupRef.current = true;
+    
     setDetectionCallback((detected: boolean, count: number) => {
-      console.log('📊 Face detection callback triggered:', { detected, count });
+      console.log('📊 EnhancedFaceDetectionCamera received detection:', { detected, count });
       
       // Always notify parent component
       onFaceDetected(detected, count);
@@ -55,6 +61,7 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
     if (isActive) {
       console.log('👤 User manually stopping camera');
       stopCamera();
+      callbackSetupRef.current = false;
     } else {
       console.log('👤 User manually starting camera');
       startCamera();
