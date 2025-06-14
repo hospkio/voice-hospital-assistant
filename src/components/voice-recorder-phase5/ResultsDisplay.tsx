@@ -1,7 +1,8 @@
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { 
   Mic, 
   MessageSquare, 
@@ -10,8 +11,12 @@ import {
   CheckCircle, 
   AlertCircle,
   Brain,
-  Database
+  Database,
+  Volume2,
+  Loader2
 } from 'lucide-react';
+import { useTextToSpeechService } from '@/hooks/useTextToSpeechService';
+import { useAudioPlayerService } from '@/hooks/useAudioPlayerService';
 
 interface ResultsDisplayProps {
   greetingMessage: string;
@@ -32,6 +37,30 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
   faceCount,
   automationResponse
 }) => {
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
+  const { textToSpeech } = useTextToSpeechService();
+  const { playAudio } = useAudioPlayerService();
+
+  const playResponse = async (text: string, languageCode: string = detectedLanguage || 'en-US') => {
+    if (isPlayingAudio) return;
+    
+    setIsPlayingAudio(true);
+    try {
+      console.log('🔊 Playing response:', text, 'in language:', languageCode);
+      const ttsResult = await textToSpeech(text, languageCode);
+      if (ttsResult.success && ttsResult.audioContent) {
+        await playAudio(ttsResult.audioContent);
+        console.log('✅ Audio playback completed');
+      } else {
+        console.error('❌ TTS failed:', ttsResult.error);
+      }
+    } catch (error) {
+      console.error('❌ Audio playback error:', error);
+    } finally {
+      setIsPlayingAudio(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Greeting Message */}
@@ -59,15 +88,32 @@ const ResultsDisplay: React.FC<ResultsDisplayProps> = ({
           <CardHeader className={`${
             automationResponse.success ? 'bg-blue-100' : 'bg-red-100'
           }`}>
-            <CardTitle className={`flex items-center space-x-2 ${
+            <CardTitle className={`flex items-center justify-between ${
               automationResponse.success ? 'text-blue-800' : 'text-red-800'
             }`}>
-              <Brain className="h-5 w-5" />
-              <span>Hospital Assistant Response</span>
-              {automationResponse.success ? (
-                <CheckCircle className="h-4 w-4 text-green-600" />
-              ) : (
-                <AlertCircle className="h-4 w-4 text-red-600" />
+              <div className="flex items-center space-x-2">
+                <Brain className="h-5 w-5" />
+                <span>Hospital Assistant Response</span>
+                {automationResponse.success ? (
+                  <CheckCircle className="h-4 w-4 text-green-600" />
+                ) : (
+                  <AlertCircle className="h-4 w-4 text-red-600" />
+                )}
+              </div>
+              {automationResponse.success && automationResponse.responseText && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => playResponse(automationResponse.responseText)}
+                  disabled={isPlayingAudio}
+                  className="bg-white hover:bg-gray-50"
+                >
+                  {isPlayingAudio ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Volume2 className="h-4 w-4" />
+                  )}
+                </Button>
               )}
             </CardTitle>
           </CardHeader>

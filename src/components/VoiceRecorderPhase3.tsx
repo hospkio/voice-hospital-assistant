@@ -1,9 +1,12 @@
 
 import React, { useState } from 'react';
-import { Loader2, CheckCircle, AlertCircle, Brain } from 'lucide-react';
+import { Loader2, CheckCircle, AlertCircle, Brain, Volume2 } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import VoiceRecorderPhase2 from './VoiceRecorderPhase2';
 import { useDialogflowAutomation } from '@/hooks/useDialogflowAutomation';
+import { useTextToSpeechService } from '@/hooks/useTextToSpeechService';
+import { useAudioPlayerService } from '@/hooks/useAudioPlayerService';
 
 interface IntentResult {
   intent: string;
@@ -18,8 +21,11 @@ const VoiceRecorderPhase3 = () => {
   const [intentResult, setIntentResult] = useState<IntentResult | null>(null);
   const [isProcessingIntent, setIsProcessingIntent] = useState(false);
   const [intentError, setIntentError] = useState<string>('');
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false);
   
   const { processUserQuery } = useDialogflowAutomation();
+  const { textToSpeech } = useTextToSpeechService();
+  const { playAudio } = useAudioPlayerService();
 
   const handleTranscriptReady = async (transcript: string, detectedLanguage: string) => {
     console.log('🧠 Phase 3: Processing intent for transcript:', transcript);
@@ -45,11 +51,36 @@ const VoiceRecorderPhase3 = () => {
         processingTime
       });
       
+      // Auto-play the response
+      if (result.success && result.responseText) {
+        await playResponse(result.responseText, detectedLanguage);
+      }
+      
     } catch (error) {
       console.error('❌ Intent processing failed:', error);
       setIntentError(error.message || 'Failed to process intent');
     } finally {
       setIsProcessingIntent(false);
+    }
+  };
+
+  const playResponse = async (text: string, languageCode: string = 'en-US') => {
+    if (isPlayingAudio) return;
+    
+    setIsPlayingAudio(true);
+    try {
+      console.log('🔊 Playing response:', text, 'in language:', languageCode);
+      const ttsResult = await textToSpeech(text, languageCode);
+      if (ttsResult.success && ttsResult.audioContent) {
+        await playAudio(ttsResult.audioContent);
+        console.log('✅ Audio playback completed');
+      } else {
+        console.error('❌ TTS failed:', ttsResult.error);
+      }
+    } catch (error) {
+      console.error('❌ Audio playback error:', error);
+    } finally {
+      setIsPlayingAudio(false);
     }
   };
 
@@ -73,9 +104,25 @@ const VoiceRecorderPhase3 = () => {
       {intentResult && (
         <Card className="border-purple-200 bg-purple-50">
           <CardHeader className="bg-purple-100">
-            <CardTitle className="flex items-center space-x-2 text-purple-800">
-              <Brain className="h-6 w-6" />
-              <span>Hospital Assistant Response</span>
+            <CardTitle className="flex items-center justify-between text-purple-800">
+              <div className="flex items-center space-x-2">
+                <Brain className="h-6 w-6" />
+                <span>Hospital Assistant Response</span>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => playResponse(intentResult.responseText)}
+                disabled={isPlayingAudio}
+                className="bg-white hover:bg-gray-50"
+              >
+                {isPlayingAudio ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Volume2 className="h-4 w-4 mr-2" />
+                )}
+                {isPlayingAudio ? 'Playing...' : 'Play Response'}
+              </Button>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
