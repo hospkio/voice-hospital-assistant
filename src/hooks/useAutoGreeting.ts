@@ -3,10 +3,15 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface UseAutoGreetingProps {
   onAutoGreetingTriggered?: () => void;
-  autoInteractionEnabled?: boolean; // Add this prop
+  autoInteractionEnabled?: boolean;
+  faceDetectionEnabled?: boolean; // Add face detection enabled check
 }
 
-export const useAutoGreeting = ({ onAutoGreetingTriggered, autoInteractionEnabled = true }: UseAutoGreetingProps) => {
+export const useAutoGreeting = ({ 
+  onAutoGreetingTriggered, 
+  autoInteractionEnabled = true,
+  faceDetectionEnabled = true 
+}: UseAutoGreetingProps) => {
   const [hasTriggeredGreeting, setHasTriggeredGreeting] = useState(false);
   const [greetingCooldown, setGreetingCooldown] = useState(false);
   const previousDetectionRef = useRef(false);
@@ -14,11 +19,17 @@ export const useAutoGreeting = ({ onAutoGreetingTriggered, autoInteractionEnable
   const lastGreetingTimeRef = useRef<number>(0);
 
   const handleFaceDetection = useCallback((detected: boolean, count: number) => {
-    // If no callback is provided OR auto interaction is disabled, don't process face detection
-    if (!onAutoGreetingTriggered || !autoInteractionEnabled) {
-      console.log('🚫 Auto-greeting disabled, skipping face detection handling', {
+    // Comprehensive check - ALL conditions must be true
+    const isFullyEnabled = onAutoGreetingTriggered && 
+                          autoInteractionEnabled && 
+                          faceDetectionEnabled;
+    
+    if (!isFullyEnabled) {
+      console.log('🚫 Auto-greeting fully disabled, skipping face detection handling', {
         hasCallback: !!onAutoGreetingTriggered,
-        autoInteractionEnabled
+        autoInteractionEnabled,
+        faceDetectionEnabled,
+        isFullyEnabled
       });
       return;
     }
@@ -29,7 +40,9 @@ export const useAutoGreeting = ({ onAutoGreetingTriggered, autoInteractionEnable
       previousDetection: previousDetectionRef.current, 
       hasTriggeredGreeting, 
       greetingCooldown,
-      autoInteractionEnabled
+      autoInteractionEnabled,
+      faceDetectionEnabled,
+      isFullyEnabled
     });
     
     const currentTime = Date.now();
@@ -38,7 +51,7 @@ export const useAutoGreeting = ({ onAutoGreetingTriggered, autoInteractionEnable
     // Check if this is a NEW face detection (transition from false to true)
     const isNewDetection = detected && !previousDetectionRef.current;
     
-    if (isNewDetection && !hasTriggeredGreeting && !greetingCooldown && autoInteractionEnabled) {
+    if (isNewDetection && !hasTriggeredGreeting && !greetingCooldown && isFullyEnabled) {
       if (timeSinceLastGreeting > 30000) {
         console.log('🎉 NEW FACE DETECTED! Triggering auto-greeting...');
         setHasTriggeredGreeting(true);
@@ -65,21 +78,33 @@ export const useAutoGreeting = ({ onAutoGreetingTriggered, autoInteractionEnable
     }
     
     previousDetectionRef.current = detected;
-  }, [hasTriggeredGreeting, greetingCooldown, onAutoGreetingTriggered, autoInteractionEnabled]);
+  }, [hasTriggeredGreeting, greetingCooldown, onAutoGreetingTriggered, autoInteractionEnabled, faceDetectionEnabled]);
 
-  // Reset states when callback is removed OR auto interaction is disabled
+  // Reset states when any required setting is disabled
   useEffect(() => {
-    if (!onAutoGreetingTriggered || !autoInteractionEnabled) {
+    const isFullyEnabled = onAutoGreetingTriggered && 
+                          autoInteractionEnabled && 
+                          faceDetectionEnabled;
+    
+    if (!isFullyEnabled) {
       console.log('🔄 Auto-greeting disabled, resetting states...', {
         hasCallback: !!onAutoGreetingTriggered,
-        autoInteractionEnabled
+        autoInteractionEnabled,
+        faceDetectionEnabled,
+        isFullyEnabled
       });
       setHasTriggeredGreeting(false);
       setGreetingCooldown(false);
       previousDetectionRef.current = false;
       lastGreetingTimeRef.current = 0;
+      
+      // Clear any pending timeouts
+      if (greetingTimeoutRef.current) {
+        clearTimeout(greetingTimeoutRef.current);
+        greetingTimeoutRef.current = null;
+      }
     }
-  }, [onAutoGreetingTriggered, autoInteractionEnabled]);
+  }, [onAutoGreetingTriggered, autoInteractionEnabled, faceDetectionEnabled]);
 
   // Cleanup on unmount
   useEffect(() => {

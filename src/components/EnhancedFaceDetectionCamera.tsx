@@ -15,6 +15,7 @@ interface EnhancedFaceDetectionCameraProps {
   onAutoGreetingTriggered?: () => void;
   showControls?: boolean;
   faceDetectionEnabled?: boolean;
+  autoInteractionEnabled?: boolean; // Add this prop
 }
 
 const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = ({ 
@@ -22,7 +23,8 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
   autoStart = true,
   onAutoGreetingTriggered,
   showControls = false,
-  faceDetectionEnabled = true
+  faceDetectionEnabled = true,
+  autoInteractionEnabled = true // Add this prop
 }) => {
   const { 
     videoRef, 
@@ -36,32 +38,43 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
   } = useFaceDetection(autoStart && faceDetectionEnabled); // Only auto-start if enabled
 
   const { greetingCooldown, handleFaceDetection } = useAutoGreeting({
-    onAutoGreetingTriggered: faceDetectionEnabled ? onAutoGreetingTriggered : undefined
+    onAutoGreetingTriggered: (faceDetectionEnabled && autoInteractionEnabled) ? onAutoGreetingTriggered : undefined,
+    autoInteractionEnabled,
+    faceDetectionEnabled
   });
 
   const callbackSetupRef = useRef(false);
 
   // Memoize the combined callback to prevent infinite re-renders
   const combinedCallback = useCallback((detected: boolean, count: number) => {
-    console.log('📊 EnhancedFaceDetectionCamera received detection:', { detected, count, enabled: faceDetectionEnabled });
+    console.log('📊 EnhancedFaceDetectionCamera received detection:', { 
+      detected, 
+      count, 
+      faceDetectionEnabled,
+      autoInteractionEnabled,
+      isFullyEnabled: faceDetectionEnabled && autoInteractionEnabled
+    });
     
-    // Only process if face detection is enabled
-    if (faceDetectionEnabled) {
+    // Only process if BOTH face detection AND auto interaction are enabled
+    if (faceDetectionEnabled && autoInteractionEnabled) {
       // Always notify parent component
       onFaceDetected(detected, count);
       
       // Handle auto-greeting logic
       handleFaceDetection(detected, count);
     } else {
-      // If disabled, always report no faces
+      // If either is disabled, always report no faces
       onFaceDetected(false, 0);
     }
-  }, [onFaceDetected, handleFaceDetection, faceDetectionEnabled]);
+  }, [onFaceDetected, handleFaceDetection, faceDetectionEnabled, autoInteractionEnabled]);
 
-  // Set up detection callback only when face detection is enabled
+  // Set up detection callback only when BOTH settings are enabled
   useEffect(() => {
-    if (!faceDetectionEnabled) {
-      console.log('🚫 Face detection disabled, stopping camera and resetting callback...');
+    if (!faceDetectionEnabled || !autoInteractionEnabled) {
+      console.log('🚫 Face detection or auto interaction disabled, stopping camera and resetting callback...', {
+        faceDetectionEnabled,
+        autoInteractionEnabled
+      });
       
       // Stop camera if it's running
       if (isActive) {
@@ -82,7 +95,7 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
     callbackSetupRef.current = true;
     
     setDetectionCallback(combinedCallback);
-  }, [combinedCallback, setDetectionCallback, faceDetectionEnabled, isActive, stopCamera, onFaceDetected]);
+  }, [combinedCallback, setDetectionCallback, faceDetectionEnabled, autoInteractionEnabled, isActive, stopCamera, onFaceDetected]);
 
   const handleCameraToggle = () => {
     if (!faceDetectionEnabled) {
@@ -100,22 +113,26 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
     }
   };
 
-  // Show disabled state when face detection is off
-  if (!faceDetectionEnabled) {
+  // Show disabled state when either setting is off
+  if (!faceDetectionEnabled || !autoInteractionEnabled) {
+    const disabledReason = !faceDetectionEnabled ? 
+      'Face detection is disabled' : 
+      'Auto voice interaction is disabled';
+    
     return (
       <Card className="w-full border-0 shadow-2xl bg-gradient-to-br from-gray-50 via-white to-gray-50 overflow-hidden">
         <CardHeader className="pb-4 bg-gradient-to-r from-gray-400 to-gray-600 text-white">
           <div className="text-center">
-            <h3 className="text-xl font-bold">Face Detection Disabled</h3>
-            <p className="text-gray-200 text-sm">Enable face detection in settings to use this feature</p>
+            <h3 className="text-xl font-bold">Camera Disabled</h3>
+            <p className="text-gray-200 text-sm">{disabledReason}</p>
           </div>
         </CardHeader>
         
         <CardContent className="p-6">
           <div className="relative bg-gray-200 rounded-2xl overflow-hidden aspect-video shadow-2xl flex items-center justify-center">
             <div className="text-center text-gray-500">
-              <p className="text-lg font-medium">Face Detection Off</p>
-              <p className="text-sm">Go to Settings to enable</p>
+              <p className="text-lg font-medium">Camera Off</p>
+              <p className="text-sm">Enable both settings to use camera</p>
             </div>
           </div>
         </CardContent>

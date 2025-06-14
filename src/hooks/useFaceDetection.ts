@@ -20,9 +20,13 @@ export const useFaceDetection = (autoStart: boolean = true) => {
   const detectionManagerRef = useRef(new DetectionManager(faceDetectionServiceRef.current));
   const autoStartedRef = useRef(false);
   const callbackSetRef = useRef(false);
+  const isEnabledRef = useRef(autoStart);
 
   const startCamera = async () => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || !isEnabledRef.current) {
+      console.log('🚫 Camera start blocked - face detection disabled');
+      return;
+    }
 
     try {
       setState(prev => ({ ...prev, isLoading: true }));
@@ -33,10 +37,12 @@ export const useFaceDetection = (autoStart: boolean = true) => {
       console.log('✅ Camera started successfully');
       setState(prev => ({ ...prev, isLoading: false, isActive: true }));
       
-      // Delay starting detection to ensure video is fully ready
+      // Only start detection if still enabled
       setTimeout(() => {
-        console.log('🎯 Starting face detection after camera ready...');
-        detectionManagerRef.current.startDetection();
+        if (isEnabledRef.current) {
+          console.log('🎯 Starting face detection after camera ready...');
+          detectionManagerRef.current.startDetection();
+        }
       }, 1000);
       
     } catch (error) {
@@ -48,9 +54,9 @@ export const useFaceDetection = (autoStart: boolean = true) => {
   const stopCamera = useCallback(() => {
     console.log('🛑 Stopping camera and all detection services...');
     
-    // Stop all services
-    cameraServiceRef.current.stopCamera();
+    // Stop all services immediately
     detectionManagerRef.current.stopDetection();
+    cameraServiceRef.current.stopCamera();
     
     // Reset all state
     setState({
@@ -69,10 +75,18 @@ export const useFaceDetection = (autoStart: boolean = true) => {
   }, []);
 
   const detectFaces = async () => {
+    if (!isEnabledRef.current) {
+      return { facesDetected: false, faceCount: 0, confidence: 0, boundingBoxes: [], success: false };
+    }
     return await faceDetectionServiceRef.current.detectFaces();
   };
 
   const setDetectionCallback = useCallback((callback: DetectionCallback) => {
+    if (!isEnabledRef.current) {
+      console.log('🚫 Detection callback blocked - face detection disabled');
+      return;
+    }
+    
     if (callbackSetRef.current) {
       console.log('🔄 Callback already set, skipping...');
       return;
@@ -82,6 +96,12 @@ export const useFaceDetection = (autoStart: boolean = true) => {
     callbackSetRef.current = true;
     
     detectionManagerRef.current.setDetectionCallback((detected: boolean, count: number) => {
+      // Double-check enabled state before triggering callback
+      if (!isEnabledRef.current) {
+        console.log('🚫 Callback blocked - face detection disabled during execution');
+        return;
+      }
+      
       console.log('📞 Detection manager callback triggered:', { detected, count });
       setState(prev => ({
         ...prev,
@@ -93,28 +113,33 @@ export const useFaceDetection = (autoStart: boolean = true) => {
     });
   }, []);
 
+  // Update enabled ref when autoStart changes
+  useEffect(() => {
+    isEnabledRef.current = autoStart;
+    
+    if (!autoStart) {
+      console.log('🚫 Face detection disabled, stopping all services immediately...');
+      stopCamera();
+      return;
+    }
+  }, [autoStart, stopCamera]);
+
   // Auto-start camera when component mounts - only if autoStart is true
   useEffect(() => {
-    if (autoStart && !autoStartedRef.current) {
+    if (autoStart && !autoStartedRef.current && isEnabledRef.current) {
       autoStartedRef.current = true;
       console.log('🚀 Auto-starting face detection camera...');
       
       // Small delay to ensure component is fully mounted
       const timer = setTimeout(() => {
-        startCamera();
+        if (isEnabledRef.current) {
+          startCamera();
+        }
       }, 1000);
       
       return () => clearTimeout(timer);
     }
   }, [autoStart]);
-
-  // Stop everything when autoStart becomes false
-  useEffect(() => {
-    if (!autoStart && state.isActive) {
-      console.log('🚫 Face detection disabled, stopping all services...');
-      stopCamera();
-    }
-  }, [autoStart, state.isActive, stopCamera]);
 
   useEffect(() => {
     return () => {
@@ -124,9 +149,9 @@ export const useFaceDetection = (autoStart: boolean = true) => {
 
   return {
     videoRef,
-    isActive: state.isActive,
-    facesDetected: state.facesDetected,
-    faceCount: state.faceCount,
+    isActive: state.isActive && isEnabledRef.current,
+    facesDetected: state.facesDetected && isEnabledRef.current,
+    faceCount: isEnabledRef.current ? state.faceCount : 0,
     isLoading: state.isLoading,
     lastDetectionTime: state.lastDetectionTime,
     startCamera,

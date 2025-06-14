@@ -29,11 +29,12 @@ const AssistantTabContent: React.FC<AssistantTabContentProps> = ({
   onAutoGreetingTriggered,
   faceDetectionEnabled
 }) => {
-  // Create a wrapped auto-greeting handler that checks autoInteractionEnabled
+  // Create a wrapped auto-greeting handler that checks BOTH settings
   const handleAutoGreetingTriggered = () => {
     console.log('🤖 AssistantTab auto-greeting check:', {
       autoInteractionEnabled: state.autoInteractionEnabled,
-      faceDetectionEnabled
+      faceDetectionEnabled,
+      bothEnabled: state.autoInteractionEnabled && faceDetectionEnabled
     });
     
     // Only trigger auto-greeting if BOTH settings are enabled
@@ -81,6 +82,7 @@ const AssistantTabContent: React.FC<AssistantTabContentProps> = ({
             autoStart={state.autoInteractionEnabled && faceDetectionEnabled}
             onAutoGreetingTriggered={handleAutoGreetingTriggered}
             faceDetectionEnabled={faceDetectionEnabled}
+            autoInteractionEnabled={state.autoInteractionEnabled}
           />
         </div>
 
