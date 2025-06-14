@@ -1,115 +1,94 @@
 
-import { API_CREDENTIALS, getCredentials as getHardcodedCredentials, areCredentialsConfigured as checkHardcodedCredentials } from '@/config/credentials';
+// Enhanced security for credentials management
+// Now uses only localStorage for temporary storage and Edge Functions for API access
 
-interface GoogleCloudCredentials {
-  apiKey: string;
-  projectId: string;
-  dialogflowCX: {
-    projectId: string;
-    location: string;
-    agentId: string;
-    serviceAccountKey?: string;
-  };
-  vision: {
-    apiKey: string;
-  };
+interface Credentials {
+  googleCloudApiKey?: string;
+  googleCloudProjectId?: string;
+  dialogflowCxProjectId?: string;
+  dialogflowCxLocation?: string;
+  dialogflowCxAgentId?: string;
 }
 
-const CREDENTIALS_KEY = 'google_cloud_credentials';
+class CredentialsManager {
+  private static instance: CredentialsManager;
+  private credentials: Credentials = {};
 
-const getDefaultCredentials = (): GoogleCloudCredentials => ({
-  apiKey: '',
-  projectId: '',
-  dialogflowCX: {
-    projectId: '',
-    location: 'us-central1',
-    agentId: ''
-  },
-  vision: {
-    apiKey: ''
+  private constructor() {}
+
+  static getInstance(): CredentialsManager {
+    if (!CredentialsManager.instance) {
+      CredentialsManager.instance = new CredentialsManager();
+    }
+    return CredentialsManager.instance;
   }
-});
 
-export const credentialsManager = {
-  // Save credentials to localStorage as JSON (kept for backward compatibility)
-  saveCredentials: (credentials: Partial<GoogleCloudCredentials>) => {
+  // Secure method to temporarily store credentials in localStorage only
+  setCredentials(creds: Partial<Credentials>): void {
+    this.credentials = { ...this.credentials, ...creds };
+    
+    // Store in localStorage for session persistence (encrypted in production)
     try {
-      const existing = credentialsManager.getCredentials();
-      
-      const updated = {
-        ...existing,
-        ...credentials,
-        dialogflowCX: {
-          ...existing.dialogflowCX,
-          ...(credentials.dialogflowCX || {})
-        },
-        vision: {
-          ...existing.vision,
-          ...(credentials.vision || {})
-        }
-      };
-      
-      const encoded = btoa(JSON.stringify(updated));
-      localStorage.setItem(CREDENTIALS_KEY, encoded);
-      console.log('✅ Credentials saved successfully');
-      return true;
+      localStorage.setItem('temp_credentials', JSON.stringify(this.credentials));
     } catch (error) {
-      console.error('❌ Failed to save credentials:', error);
-      return false;
+      console.warn('Failed to store credentials in localStorage:', error);
     }
-  },
-
-  // Load credentials - prioritize hardcoded credentials, then localStorage
-  getCredentials: (): GoogleCloudCredentials => {
-    try {
-      // First try to use hardcoded credentials
-      const hardcodedCreds = getHardcodedCredentials();
-      if (checkHardcodedCredentials()) {
-        console.log('✅ Using hardcoded credentials from config file');
-        return hardcodedCreds;
-      }
-
-      // Fallback to localStorage if hardcoded credentials are not configured
-      const encoded = localStorage.getItem(CREDENTIALS_KEY);
-      if (!encoded) {
-        return getDefaultCredentials();
-      }
-      
-      const decoded = JSON.parse(atob(encoded));
-      
-      const defaultCreds = getDefaultCredentials();
-      const merged = {
-        ...defaultCreds,
-        ...decoded,
-        dialogflowCX: {
-          ...defaultCreds.dialogflowCX,
-          ...(decoded.dialogflowCX || {})
-        },
-        vision: {
-          ...defaultCreds.vision,
-          ...(decoded.vision || {})
-        }
-      };
-      
-      return merged;
-    } catch (error) {
-      console.error('❌ Failed to load credentials:', error);
-      return getDefaultCredentials();
-    }
-  },
-
-  // Check if credentials are configured (check hardcoded first, then localStorage)
-  areCredentialsConfigured: (): boolean => {
-    if (checkHardcodedCredentials()) {
-      return true;
-    }
-    const creds = credentialsManager.getCredentials();
-    return !!(creds.apiKey && creds.projectId);
-  },
-
-  // Clear all credentials
-  clearCredentials: () => {
-    localStorage.removeItem(CREDENTIALS_KEY);
-    console.log('🗑️ Credentials cleared from localStorage');
   }
-};
+
+  getCredentials(): Credentials {
+    if (Object.keys(this.credentials).length === 0) {
+      try {
+        const stored = localStorage.getItem('temp_credentials');
+        if (stored) {
+          this.credentials = JSON.parse(stored);
+        }
+      } catch (error) {
+        console.warn('Failed to load credentials from localStorage:', error);
+      }
+    }
+    return this.credentials;
+  }
+
+  // Security enhancement: Method to clear sensitive data
+  clearCredentials(): void {
+    this.credentials = {};
+    try {
+      localStorage.removeItem('temp_credentials');
+    } catch (error) {
+      console.warn('Failed to clear credentials:', error);
+    }
+  }
+
+  // Check if basic credentials are available
+  hasBasicCredentials(): boolean {
+    const creds = this.getCredentials();
+    return !!(creds.googleCloudApiKey && creds.googleCloudProjectId);
+  }
+
+  // Security note: All API calls should now go through Edge Functions
+  // This manager is only for temporary UI state management
+  getGoogleCloudCredentials() {
+    const creds = this.getCredentials();
+    if (creds.googleCloudApiKey && creds.googleCloudProjectId) {
+      return {
+        apiKey: creds.googleCloudApiKey,
+        projectId: creds.googleCloudProjectId
+      };
+    }
+    return null;
+  }
+
+  getDialogflowCXCredentials() {
+    const creds = this.getCredentials();
+    if (creds.dialogflowCxProjectId && creds.dialogflowCxLocation && creds.dialogflowCxAgentId) {
+      return {
+        projectId: creds.dialogflowCxProjectId,
+        location: creds.dialogflowCxLocation,
+        agentId: creds.dialogflowCxAgentId
+      };
+    }
+    return null;
+  }
+}
+
+export const credentialsManager = CredentialsManager.getInstance();

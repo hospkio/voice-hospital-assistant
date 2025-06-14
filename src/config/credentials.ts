@@ -1,24 +1,30 @@
+// Security improvement: Remove hardcoded credentials
+// All API keys should now be stored as Supabase secrets and accessed via Edge Functions
 
-// Hardcoded API credentials - Replace with your actual keys
-export const API_CREDENTIALS = {
-  apiKey: 'AIzaSyAUMuJMxBl9ph2ULMEeql9JNz_QN76d_w8', // Replace with your Google Cloud API key
-  projectId: 'spartan-cosmos-462009-j5', // Replace with your Google Cloud project ID
-  dialogflowCX: {
-    projectId: 'spartan-cosmos-462009-j5', // Replace with your Dialogflow CX project ID
-    location: 'us-central1',
-    agentId: '0647bca7-cdea-42ff-9303-db4b14113b91' // Replace with your Dialogflow CX agent ID
-  },
-  vision: {
-    apiKey: '084f3f3d3e4709297bcd50a6b730fe177a9fcd06' // Replace with your Vision API key (optional)
-  }
+export interface GoogleCloudCredentials {
+  apiKey: string;
+  projectId: string;
+}
+
+export interface DialogflowCXCredentials {
+  projectId: string;
+  location: string;
+  agentId: string;
+}
+
+// These are now placeholder interfaces - actual credentials come from Supabase secrets
+export const getGoogleCloudCredentials = (): GoogleCloudCredentials | null => {
+  console.warn('Direct credential access deprecated. Use Edge Functions instead.');
+  return null;
 };
 
-// Helper function to get credentials
-export const getCredentials = () => {
-  return API_CREDENTIALS;
+export const getDialogflowCXCredentials = (): DialogflowCXCredentials | null => {
+  console.warn('Direct credential access deprecated. Use Edge Functions instead.');
+  return null;
 };
 
-// Helper function to check if credentials are configured
-export const areCredentialsConfigured = () => {
-  return !!(API_CREDENTIALS.apiKey && API_CREDENTIALS.projectId);
+// Keep minimal configuration for client-side use
+export const SUPABASE_CONFIG = {
+  url: "https://ciozbquqgfypwvgezxof.supabase.co",
+  anonKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImNpb3picXVxZ2Z5cHd2Z2V6eG9mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NDkxMTA3ODIsImV4cCI6MjA2NDY4Njc4Mn0.2F_uAiP8axzrV2epNPyx2IP9XaP3xfE7aWtHJinrCAU"
 };
