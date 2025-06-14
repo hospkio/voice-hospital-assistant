@@ -15,6 +15,17 @@ export class CredentialsManager {
     }
   }
 
+  // Add the missing saveCredentials method
+  saveCredentials(newCredentials: Partial<Credentials>): boolean {
+    try {
+      this.setCredentials(newCredentials);
+      return true;
+    } catch (error) {
+      console.error('Failed to save credentials:', error);
+      return false;
+    }
+  }
+
   getCredentials(): Credentials {
     return { ...this.credentials };
   }
@@ -42,7 +53,7 @@ export class CredentialsManager {
   }
 
   hasValidCredentials(): boolean {
-    return Boolean(this.credentials.googleCloudApiKey?.trim());
+    return Boolean(this.credentials.googleCloudApiKey?.trim() || this.credentials.apiKey?.trim());
   }
 }
 

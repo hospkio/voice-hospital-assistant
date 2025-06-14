@@ -1,4 +1,3 @@
-
 import { useState } from 'react';
 import { credentialsManager } from '@/utils/credentialsManager';
 
@@ -30,10 +29,10 @@ export const useDialogflowCXService = () => {
       const credentials = credentialsManager.getCredentials();
       
       // Safely access nested properties with fallbacks
-      const projectId = credentials?.dialogflowCX?.projectId || credentials?.projectId || '';
+      const projectId = credentials?.dialogflowCX?.projectId || credentials?.dialogflowProjectId || credentials?.projectId || '';
       const location = credentials?.dialogflowCX?.location || 'us-central1';
       const agentId = credentials?.dialogflowCX?.agentId || '';
-      const apiKey = credentials?.apiKey || '';
+      const apiKey = credentials?.googleCloudApiKey || credentials?.apiKey || '';
 
       if (!apiKey || !projectId || !agentId) {
         console.warn('⚠️ Dialogflow CX credentials incomplete, using fallback');

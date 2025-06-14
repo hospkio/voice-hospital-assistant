@@ -20,7 +20,8 @@ export const useTextToSpeechService = () => {
       console.log('🔊 Sending text to Google Text-to-Speech API...');
       
       const credentials = credentialsManager.getCredentials();
-      if (!credentials.apiKey) {
+      const apiKey = credentials.googleCloudApiKey || credentials.apiKey;
+      if (!apiKey) {
         throw new Error('Google Cloud API key not found. Please configure it in Settings tab.');
       }
 
@@ -61,7 +62,7 @@ export const useTextToSpeechService = () => {
       console.log('Sending TTS request to Google Cloud...');
 
       const response = await fetch(
-        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${credentials.apiKey}`,
+        `https://texttospeech.googleapis.com/v1/text:synthesize?key=${apiKey}`,
         {
           method: 'POST',
           headers: {
