@@ -35,6 +35,12 @@ const EnhancedKiosk = () => {
   }, [updateState]);
 
   const handleAutoGreeting = useCallback(async () => {
+    // Don't trigger auto greeting if face detection is disabled
+    if (!state.faceDetectionEnabled) {
+      console.log('🚫 Face detection disabled, skipping auto-greeting');
+      return;
+    }
+
     const currentTime = Date.now();
     
     // Prevent multiple greetings within 30 seconds
@@ -139,7 +145,7 @@ const EnhancedKiosk = () => {
       
       console.log('🔄 Auto-greeting process completed');
     }
-  }, [state.selectedLanguage, state.conversationHistory, updateState, textToSpeech, playAudio, toast]);
+  }, [state.selectedLanguage, state.conversationHistory, state.faceDetectionEnabled, updateState, textToSpeech, playAudio, toast]);
 
   const handleVoiceInput = async (transcript: string, confidence: number, detectedLanguage: string) => {
     console.log('🎤 PROCESSING VOICE INPUT:', { transcript, confidence, detectedLanguage });
@@ -221,15 +227,21 @@ const EnhancedKiosk = () => {
   };
 
   const handleFaceDetection = useCallback((detected: boolean, count: number) => {
-    console.log(`👥 MAIN KIOSK - Face detection callback: detected=${detected}, count=${count}`);
-    updateState({ facesDetected: detected, faceCount: count });
+    console.log(`👥 MAIN KIOSK - Face detection callback: detected=${detected}, count=${count}, enabled=${state.faceDetectionEnabled}`);
     
-    if (detected) {
-      console.log(`👥 FACE DETECTION: ${count} face(s) detected - triggering auto greeting`);
-      // Trigger auto greeting immediately when face detected
-      handleAutoGreeting();
+    // Only update face detection state if face detection is enabled
+    if (state.faceDetectionEnabled) {
+      updateState({ facesDetected: detected, faceCount: count });
+      
+      if (detected) {
+        console.log(`👥 FACE DETECTION: ${count} face(s) detected - triggering auto greeting`);
+        handleAutoGreeting();
+      }
+    } else {
+      // Reset face detection state when disabled
+      updateState({ facesDetected: false, faceCount: 0 });
     }
-  }, [updateState, handleAutoGreeting]);
+  }, [state.faceDetectionEnabled, updateState, handleAutoGreeting]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex flex-col touch-manipulation selection:bg-blue-200">
@@ -238,6 +250,7 @@ const EnhancedKiosk = () => {
         faceCount={state.faceCount}
         selectedLanguage={state.selectedLanguage}
         autoInteractionEnabled={state.autoInteractionEnabled}
+        faceDetectionEnabled={state.faceDetectionEnabled}
         onLanguageChange={(lang) => updateState({ selectedLanguage: lang })}
         onToggleAutoInteraction={() => updateState({ 
           autoInteractionEnabled: !state.autoInteractionEnabled 
@@ -254,6 +267,7 @@ const EnhancedKiosk = () => {
         onDepartmentSelect={handleDepartmentSelect}
         onShowAppointmentModal={() => updateState({ showAppointmentModal: true })}
         onAutoGreetingTriggered={handleAutoGreeting}
+        faceDetectionEnabled={state.faceDetectionEnabled}
       />
 
       <KioskFooter />

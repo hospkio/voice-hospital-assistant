@@ -12,6 +12,7 @@ interface KioskState {
   facesDetected: boolean;
   faceCount: number;
   autoInteractionEnabled: boolean;
+  faceDetectionEnabled: boolean; // New setting
   showAppointmentModal: boolean;
   lastGreetingTime: number;
   isAutoDetecting: boolean;
@@ -22,12 +23,13 @@ export const useKioskState = () => {
     isListening: false,
     selectedLanguage: 'en-US',
     currentResponse: null,
-    sessionId: SecurityHelpers.generateSessionId(), // Use secure session ID generation
+    sessionId: SecurityHelpers.generateSessionId(),
     conversationHistory: [],
     selectedDepartment: undefined,
     facesDetected: false,
     faceCount: 0,
     autoInteractionEnabled: true,
+    faceDetectionEnabled: true, // Default enabled
     showAppointmentModal: false,
     lastGreetingTime: 0,
     isAutoDetecting: false
@@ -55,7 +57,7 @@ export const useKioskState = () => {
 
     // Validate language selection
     if (updates.selectedLanguage) {
-      const validLanguages = ['en-US', 'ta-IN', 'ml-IN'];
+      const validLanguages = ['en-US', 'ta-IN', 'ml-IN', 'hi-IN', 'te-IN'];
       if (!validLanguages.includes(updates.selectedLanguage)) {
         SecurityHelpers.logSecurityEvent('Invalid language selection', { 
           language: updates.selectedLanguage 

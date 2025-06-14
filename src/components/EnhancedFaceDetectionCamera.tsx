@@ -14,13 +14,15 @@ interface EnhancedFaceDetectionCameraProps {
   autoStart?: boolean;
   onAutoGreetingTriggered?: () => void;
   showControls?: boolean;
+  faceDetectionEnabled?: boolean;
 }
 
 const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = ({ 
   onFaceDetected, 
   autoStart = true,
   onAutoGreetingTriggered,
-  showControls = false
+  showControls = false,
+  faceDetectionEnabled = true
 }) => {
   const { 
     videoRef, 
@@ -31,7 +33,7 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
     startCamera, 
     stopCamera,
     setDetectionCallback
-  } = useFaceDetection(autoStart);
+  } = useFaceDetection(autoStart && faceDetectionEnabled);
 
   const { greetingCooldown, handleFaceDetection } = useAutoGreeting({
     onAutoGreetingTriggered
@@ -41,26 +43,46 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
 
   // Memoize the combined callback to prevent infinite re-renders
   const combinedCallback = useCallback((detected: boolean, count: number) => {
-    console.log('📊 EnhancedFaceDetectionCamera received detection:', { detected, count });
+    console.log('📊 EnhancedFaceDetectionCamera received detection:', { detected, count, enabled: faceDetectionEnabled });
     
-    // Always notify parent component
-    onFaceDetected(detected, count);
-    
-    // Handle auto-greeting logic
-    handleFaceDetection(detected, count);
-  }, [onFaceDetected, handleFaceDetection]);
+    // Only process if face detection is enabled
+    if (faceDetectionEnabled) {
+      // Always notify parent component
+      onFaceDetected(detected, count);
+      
+      // Handle auto-greeting logic
+      handleFaceDetection(detected, count);
+    } else {
+      // If disabled, always report no faces
+      onFaceDetected(false, 0);
+    }
+  }, [onFaceDetected, handleFaceDetection, faceDetectionEnabled]);
 
-  // Set up detection callback only once
+  // Set up detection callback only once and when face detection is enabled
   useEffect(() => {
+    if (!faceDetectionEnabled) {
+      // Stop camera if face detection is disabled
+      if (isActive) {
+        stopCamera();
+      }
+      callbackSetupRef.current = false;
+      return;
+    }
+
     if (callbackSetupRef.current) return;
     
     console.log('🔧 Setting up face detection callback in EnhancedFaceDetectionCamera...');
     callbackSetupRef.current = true;
     
     setDetectionCallback(combinedCallback);
-  }, [combinedCallback, setDetectionCallback]);
+  }, [combinedCallback, setDetectionCallback, faceDetectionEnabled, isActive, stopCamera]);
 
   const handleCameraToggle = () => {
+    if (!faceDetectionEnabled) {
+      console.log('🚫 Face detection disabled, cannot toggle camera');
+      return;
+    }
+
     if (isActive) {
       console.log('👤 User manually stopping camera');
       stopCamera();
@@ -70,6 +92,29 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
       startCamera();
     }
   };
+
+  // Show disabled state when face detection is off
+  if (!faceDetectionEnabled) {
+    return (
+      <Card className="w-full border-0 shadow-2xl bg-gradient-to-br from-gray-50 via-white to-gray-50 overflow-hidden">
+        <CardHeader className="pb-4 bg-gradient-to-r from-gray-400 to-gray-600 text-white">
+          <div className="text-center">
+            <h3 className="text-xl font-bold">Face Detection Disabled</h3>
+            <p className="text-gray-200 text-sm">Enable face detection in settings to use this feature</p>
+          </div>
+        </CardHeader>
+        
+        <CardContent className="p-6">
+          <div className="relative bg-gray-200 rounded-2xl overflow-hidden aspect-video shadow-2xl flex items-center justify-center">
+            <div className="text-center text-gray-500">
+              <p className="text-lg font-medium">Face Detection Off</p>
+              <p className="text-sm">Go to Settings to enable</p>
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   return (
     <Card className="w-full border-0 shadow-2xl bg-gradient-to-br from-blue-50 via-white to-green-50 overflow-hidden">
