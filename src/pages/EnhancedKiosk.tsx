@@ -1,4 +1,3 @@
-
 import React, { useEffect, useRef } from 'react';
 import { useKioskState } from '@/hooks/useKioskState';
 import { useGoogleCloudServices } from '@/hooks/useGoogleCloudServices';
@@ -242,19 +241,30 @@ const EnhancedKiosk: React.FC = () => {
     updateState({ showAppointmentModal: true });
   };
 
-  // Auto-greeting handler
+  // Enhanced auto-greeting handler - use selected language
   const handleAutoGreetingTriggered = async () => {
     if (!state.autoInteractionEnabled || !state.faceDetectionEnabled) {
       console.log('🚫 Auto-greeting disabled');
       return;
     }
     
-    console.log('🤖 Auto-greeting triggered');
-    const greeting = `Hello! Welcome to our smart healthcare kiosk. I'm here to help you with information about our hospital services, departments, and appointments. How can I assist you today?`;
+    console.log('🤖 Auto-greeting triggered with language:', state.selectedLanguage);
+    
+    // Multi-language greetings
+    const greetings = {
+      'en-US': 'Hello! Welcome to our smart healthcare kiosk. I\'m here to help you with information about our hospital services, departments, and appointments. How can I assist you today?',
+      'hi-IN': 'नमस्ते! हमारे स्मार्ट हेल्थकेयर कियोस्क में आपका स्वागत है। मैं यहाँ आपको हमारी अस्पताल सेवाओं, विभागों और अपॉइंटमेंट्स के बारे में जानकारी देने के लिए हूँ। आज मैं आपकी कैसे सहायता कर सकता हूँ?',
+      'ml-IN': 'നമസ്കാരം! ഞങ്ങളുടെ സ്മാർട്ട് ഹെൽത്ത്കെയർ കിയോസ്കിലേക്ക് സ്വാഗതം. ഞങ്ങളുടെ ആശുപത്രി സേവനങ്ങൾ, വിഭാഗങ്ങൾ, അപ്പോയിന്റ്മെന്റുകൾ എന്നിവയെക്കുറിച്ചുള്ള വിവരങ്ങൾ നൽകാൻ ഞാൻ ഇവിടെയുണ്ട്. ഇന്ന് ഞാൻ നിങ്ങളെ എങ്ങനെ സഹായിക്കാം?',
+      'ta-IN': 'வணக்கம்! எங்கள் ஸ்மார்ட் ஹெல்த்கேர் கியோஸ்க்கிற்கு வரவேற்கிறோம். எங்கள் மருத்துவமனை சேவைகள், துறைகள் மற்றும் அப்பாயின்ட்மென்ட்கள் பற்றிய தகவல்களை வழங்க நான் இங்கே இருக்கிறேன். இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்?'
+    };
+    
+    const greeting = greetings[state.selectedLanguage] || greetings['en-US'];
     
     try {
+      console.log('🔊 Generating TTS for auto-greeting in language:', state.selectedLanguage);
       const ttsResponse = await textToSpeech(greeting, state.selectedLanguage);
       if (ttsResponse.success && ttsResponse.audioContent) {
+        console.log('🔊 Playing auto-greeting audio in', state.selectedLanguage);
         await playAudio(ttsResponse.audioContent);
       }
       
@@ -324,6 +334,7 @@ const EnhancedKiosk: React.FC = () => {
         onFaceDetectionToggle={handleToggleFaceDetection}
         onAutoInteractionToggle={handleToggleAutoInteraction}
         onLanguageChange={handleLanguageChange}
+        selectedLanguage={state.selectedLanguage}
       />
       
       <KioskFooter />

@@ -9,7 +9,13 @@ import VoiceRecordingSection from '@/components/voice-recorder-phase5/VoiceRecor
 import ResultsDisplay from '@/components/voice-recorder-phase5/ResultsDisplay';
 import StatusPanel from '@/components/voice-recorder-phase5/StatusPanel';
 
-const VoiceRecorderPhase5 = () => {
+interface VoiceRecorderPhase5Props {
+  selectedLanguage?: string;
+}
+
+const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({ 
+  selectedLanguage = 'en-US' 
+}) => {
   const [greetingMessage, setGreetingMessage] = useState('');
   const [hasGreeted, setHasGreeted] = useState(false);
 
@@ -49,14 +55,14 @@ const VoiceRecorderPhase5 = () => {
   useEffect(() => {
     console.log('🔧 Setting up face detection callback in Phase5...');
     setDetectionCallback((detected: boolean, count: number) => {
-      console.log('📞 Phase5 received face detection callback:', { detected, count, hasGreeted });
+      console.log('📞 Phase5 received face detection callback:', { detected, count, hasGreeted, selectedLanguage });
       
       if (detected && !hasGreeted) {
         console.log('👥 Face detected in Phase5! Triggering auto-greeting...');
         triggerAutoGreeting();
       }
     });
-  }, [hasGreeted, setDetectionCallback]);
+  }, [hasGreeted, setDetectionCallback, selectedLanguage]);
 
   const triggerAutoGreeting = async () => {
     if (hasGreeted) {
@@ -64,18 +70,19 @@ const VoiceRecorderPhase5 = () => {
       return;
     }
     
-    console.log('🤖 Starting auto-greeting sequence...');
+    console.log('🤖 Starting auto-greeting sequence with language:', selectedLanguage);
     setHasGreeted(true);
     
-    // Default to English greeting initially
-    const defaultGreeting = greetings['en-US'];
-    setGreetingMessage(`Auto-greeting: ${defaultGreeting}`);
+    // Use the selected language for greeting
+    const currentGreeting = greetings[selectedLanguage] || greetings['en-US'];
+    setGreetingMessage(`Auto-greeting (${selectedLanguage}): ${currentGreeting}`);
     
     try {
-      // Generate and play greeting audio
-      const ttsResponse = await textToSpeech(defaultGreeting, 'en-US');
+      // Generate and play greeting audio in the selected language
+      console.log('🔊 Generating TTS for greeting in language:', selectedLanguage);
+      const ttsResponse = await textToSpeech(currentGreeting, selectedLanguage);
       if (ttsResponse.success && ttsResponse.audioContent) {
-        console.log('🔊 Playing greeting audio...');
+        console.log('🔊 Playing greeting audio in', selectedLanguage);
         await playAudio(ttsResponse.audioContent);
       }
       

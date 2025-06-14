@@ -1,13 +1,11 @@
-
-import React from 'react';
-import { Tabs, TabsContent } from '@/components/ui/tabs';
-import WelcomeBanner from '@/components/WelcomeBanner';
-import TabNavigation from '@/components/TabNavigation';
-import AssistantTabContent from '@/components/AssistantTabContent';
-import MapTabContent from '@/components/MapTabContent';
-import DepartmentsTabContent from '@/components/DepartmentsTabContent';
-import AppointmentsTabContent from '@/components/AppointmentsTabContent';
-import Settings from '@/pages/Settings';
+import React, { useState } from 'react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import AssistantTabContent from '@/components/kiosk/AssistantTabContent';
+import VoiceRecorderPhase5 from '@/components/VoiceRecorderPhase5';
+import DepartmentsTabContent from '@/components/kiosk/DepartmentsTabContent';
+import AppointmentsTabContent from '@/components/kiosk/AppointmentsTabContent';
+import MapTabContent from '@/components/kiosk/MapTabContent';
+import Settings from '@/components/kiosk/Settings';
 
 interface MainKioskInterfaceProps {
   state: any;
@@ -23,6 +21,7 @@ interface MainKioskInterfaceProps {
   onFaceDetectionToggle: (enabled: boolean) => void;
   onAutoInteractionToggle: () => void;
   onLanguageChange: (language: string) => void;
+  selectedLanguage: string;
 }
 
 const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
@@ -38,22 +37,15 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
   faceDetectionEnabled,
   onFaceDetectionToggle,
   onAutoInteractionToggle,
-  onLanguageChange
+  onLanguageChange,
+  selectedLanguage
 }) => {
-  return (
-    <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 space-y-6">
-      {/* Hero Welcome Banner */}
-      <WelcomeBanner 
-        facesDetected={state.facesDetected}
-        currentResponse={state.currentResponse}
-      />
+  const [activeTab, setActiveTab] = useState('assistant');
 
-      {/* Modern Tab Interface */}
-      <Tabs defaultValue="assistant" className="space-y-6">
-        <TabNavigation />
-
-        {/* AI Assistant Tab */}
-        <TabsContent value="assistant">
+  const renderTabContent = () => {
+    switch (activeTab) {
+      case 'assistant':
+        return (
           <AssistantTabContent
             state={state}
             isListening={isListening}
@@ -64,44 +56,54 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
             onAutoGreetingTriggered={onAutoGreetingTriggered}
             faceDetectionEnabled={faceDetectionEnabled}
           />
-        </TabsContent>
+        );
 
-        {/* Floor Map Tab */}
-        <TabsContent value="map">
-          <MapTabContent
-            selectedDepartment={state.selectedDepartment}
-            onDepartmentSelect={onDepartmentSelect}
-          />
-        </TabsContent>
+      case 'voice-test':
+        return <VoiceRecorderPhase5 selectedLanguage={selectedLanguage} />;
 
-        {/* Departments Tab */}
-        <TabsContent value="departments">
-          <DepartmentsTabContent
-            selectedDepartment={state.selectedDepartment}
-            onDepartmentSelect={onDepartmentSelect}
-          />
-        </TabsContent>
+      case 'departments':
+        return <DepartmentsTabContent onDepartmentSelect={onDepartmentSelect} />;
 
-        {/* Appointments Tab */}
-        <TabsContent value="appointments">
-          <AppointmentsTabContent
-            onShowAppointmentModal={onShowAppointmentModal}
-          />
-        </TabsContent>
+      case 'appointments':
+        return <AppointmentsTabContent onShowAppointmentModal={onShowAppointmentModal} />;
 
-        {/* Settings Tab */}
-        <TabsContent value="settings">
-          <Settings
+      case 'map':
+        return <MapTabContent />;
+
+      case 'settings':
+        return (
+          <Settings 
             faceDetectionEnabled={faceDetectionEnabled}
             onFaceDetectionToggle={onFaceDetectionToggle}
             autoInteractionEnabled={state.autoInteractionEnabled}
             onAutoInteractionToggle={onAutoInteractionToggle}
-            selectedLanguage={state.selectedLanguage}
+            selectedLanguage={selectedLanguage}
             onLanguageChange={onLanguageChange}
           />
-        </TabsContent>
+        );
+
+      default:
+        return <div>Select a tab to get started</div>;
+    }
+  };
+
+  return (
+    <div className="container mx-auto p-4">
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+        <TabsList className="bg-muted p-2 rounded-md">
+          <TabsTrigger value="assistant" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground">Assistant</TabsTrigger>
+          <TabsTrigger value="voice-test" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground">Voice Test</TabsTrigger>
+          <TabsTrigger value="departments" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground">Departments</TabsTrigger>
+          <TabsTrigger value="appointments" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground">Appointments</TabsTrigger>
+          <TabsTrigger value="map" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground">Map</TabsTrigger>
+          <TabsTrigger value="settings" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground">Settings</TabsTrigger>
+        </TabsList>
+        
+        <div className="mt-4">
+          {renderTabContent()}
+        </div>
       </Tabs>
-    </main>
+    </div>
   );
 };
 
