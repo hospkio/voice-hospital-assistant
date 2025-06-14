@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import KioskHeader from '@/components/KioskHeader';
 import KioskFooter from '@/components/KioskFooter';
 import MainKioskInterface from '@/components/MainKioskInterface';
@@ -16,7 +16,6 @@ const EnhancedKiosk = () => {
   const { textToSpeech, playAudio } = useGoogleCloudServices();
   const greetingTriggeredRef = useRef(false);
   const lastGreetingTimeRef = useRef(0);
-  const callbackSetupRef = useRef(false);
 
   // Welcome message on load
   useEffect(() => {
@@ -35,7 +34,7 @@ const EnhancedKiosk = () => {
     updateState({ currentResponse: welcomeMessage });
   }, [updateState]);
 
-  const handleAutoGreeting = async () => {
+  const handleAutoGreeting = useCallback(async () => {
     const currentTime = Date.now();
     
     // Prevent multiple greetings within 30 seconds
@@ -140,7 +139,7 @@ const EnhancedKiosk = () => {
       
       console.log('🔄 Auto-greeting process completed');
     }
-  };
+  }, [state.selectedLanguage, state.conversationHistory, updateState, textToSpeech, playAudio, toast]);
 
   const handleVoiceInput = async (transcript: string, confidence: number, detectedLanguage: string) => {
     console.log('🎤 PROCESSING VOICE INPUT:', { transcript, confidence, detectedLanguage });
@@ -221,7 +220,7 @@ const EnhancedKiosk = () => {
     handleQuickAction(`Tell me about ${department} department and show me directions`);
   };
 
-  const handleFaceDetection = (detected: boolean, count: number) => {
+  const handleFaceDetection = useCallback((detected: boolean, count: number) => {
     console.log(`👥 MAIN KIOSK - Face detection callback: detected=${detected}, count=${count}`);
     updateState({ facesDetected: detected, faceCount: count });
     
@@ -230,7 +229,7 @@ const EnhancedKiosk = () => {
       // Trigger auto greeting immediately when face detected
       handleAutoGreeting();
     }
-  };
+  }, [updateState, handleAutoGreeting]);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex flex-col touch-manipulation selection:bg-blue-200">

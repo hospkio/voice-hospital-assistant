@@ -1,5 +1,5 @@
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface UseAutoGreetingProps {
   onAutoGreetingTriggered?: () => void;
@@ -13,7 +13,7 @@ export const useAutoGreeting = ({ onAutoGreetingTriggered }: UseAutoGreetingProp
   const lastGreetingTimeRef = useRef<number>(0);
   const callbackSetRef = useRef(false);
 
-  const handleFaceDetection = (detected: boolean, count: number) => {
+  const handleFaceDetection = useCallback((detected: boolean, count: number) => {
     console.log('🎯 Face detection handler called:', { detected, count, previousDetection: previousDetectionRef.current, hasTriggeredGreeting, greetingCooldown });
     
     const currentTime = Date.now();
@@ -49,7 +49,7 @@ export const useAutoGreeting = ({ onAutoGreetingTriggered }: UseAutoGreetingProp
     }
     
     previousDetectionRef.current = detected;
-  };
+  }, [hasTriggeredGreeting, greetingCooldown, onAutoGreetingTriggered]);
 
   // Reset callback reference on unmount
   useEffect(() => {
