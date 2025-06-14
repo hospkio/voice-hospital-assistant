@@ -1,11 +1,9 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Camera, CameraOff, Mic, MicOff, Eye, MessageSquare, Volume2, Users } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { useFaceDetection } from '@/hooks/useFaceDetection';
 import { useGoogleCloudServices } from '@/hooks/useGoogleCloudServices';
-import { credentialsManager } from '@/utils/credentialsManager';
 
 const VoiceRecorderPhase5 = () => {
   const [isRecording, setIsRecording] = useState(false);
@@ -66,9 +64,9 @@ const VoiceRecorderPhase5 = () => {
     
     try {
       // Generate and play greeting audio
-      const audioData = await textToSpeech(defaultGreeting, 'en-US');
-      if (audioData) {
-        await playAudio(audioData);
+      const ttsResponse = await textToSpeech(defaultGreeting, 'en-US');
+      if (ttsResponse.success && ttsResponse.audioContent) {
+        await playAudio(ttsResponse.audioContent);
       }
       
       // Start recording after greeting
@@ -188,9 +186,9 @@ const VoiceRecorderPhase5 = () => {
             
             // Play greeting in detected language
             try {
-              const audioData = await textToSpeech(newGreeting, result.detectedLanguage);
-              if (audioData) {
-                await playAudio(audioData);
+              const ttsResponse = await textToSpeech(newGreeting, result.detectedLanguage);
+              if (ttsResponse.success && ttsResponse.audioContent) {
+                await playAudio(ttsResponse.audioContent);
               }
             } catch (error) {
               console.error('Error playing adapted greeting:', error);
