@@ -7,6 +7,7 @@ import EnhancedResponseDisplay from '@/components/EnhancedResponseDisplay';
 import EnhancedFaceDetectionCamera from '@/components/EnhancedFaceDetectionCamera';
 import QuickActionsPanel from '@/components/QuickActionsPanel';
 import SessionStatusPanel from '@/components/SessionStatusPanel';
+import { useDialogflowAutomation } from '@/hooks/useDialogflowAutomation';
 
 interface AssistantTabContentProps {
   state: any;
@@ -29,6 +30,53 @@ const AssistantTabContent: React.FC<AssistantTabContentProps> = ({
   onAutoGreetingTriggered,
   faceDetectionEnabled
 }) => {
+  const { processUserQuery } = useDialogflowAutomation();
+
+  // Enhanced voice data handler that processes queries through our automation system
+  const handleVoiceData = async (transcript: string, confidence: number, detectedLanguage: string) => {
+    console.log('🎤 Voice data received in AssistantTab:', { transcript, confidence, detectedLanguage });
+    
+    // Call the original handler first
+    onVoiceData(transcript, confidence, detectedLanguage);
+    
+    // If we have a good transcript, process it through our automation system
+    if (transcript && transcript.trim().length > 3 && confidence > 0.5) {
+      try {
+        console.log('🤖 Processing query through automation system...');
+        const sessionId = state.sessionId || `session_${Date.now()}`;
+        const result = await processUserQuery(transcript, sessionId, detectedLanguage);
+        
+        console.log('✅ Automation system response:', result);
+        
+        // Update the current response in state if there's a way to do it
+        // For now, we'll log the result - the parent component should handle state updates
+        if (result.success && result.responseText) {
+          console.log('📢 Generated response:', result.responseText);
+        }
+      } catch (error) {
+        console.error('❌ Error processing query through automation:', error);
+      }
+    }
+  };
+
+  // Enhanced quick action handler
+  const handleQuickAction = async (query: string) => {
+    console.log('⚡ Quick action triggered:', query);
+    
+    // Call the original handler
+    onQuickAction(query);
+    
+    // Process through automation system
+    try {
+      const sessionId = state.sessionId || `session_${Date.now()}`;
+      const result = await processUserQuery(query, sessionId, state.selectedLanguage || 'en-US');
+      
+      console.log('✅ Quick action automation response:', result);
+    } catch (error) {
+      console.error('❌ Error processing quick action:', error);
+    }
+  };
+
   // Create a wrapped auto-greeting handler that checks BOTH settings
   const handleAutoGreetingTriggered = () => {
     console.log('🤖 AssistantTab auto-greeting check:', {
@@ -62,14 +110,14 @@ const AssistantTabContent: React.FC<AssistantTabContentProps> = ({
                 </div>
                 <div>
                   <h3 className="text-xl font-bold">Voice Assistant</h3>
-                  <p className="text-blue-100 text-sm">AI-Powered Speech Recognition</p>
+                  <p className="text-blue-100 text-sm">AI-Powered Speech Recognition with Database Integration</p>
                 </div>
               </CardTitle>
             </CardHeader>
             <CardContent className="p-6">
               <EnhancedVoiceRecorder 
                 isListening={isListening}
-                onVoiceData={onVoiceData}
+                onVoiceData={handleVoiceData}
                 language={state.selectedLanguage}
                 onListeningChange={onListeningChange}
               />
@@ -95,7 +143,7 @@ const AssistantTabContent: React.FC<AssistantTabContentProps> = ({
 
       {/* Control Panel */}
       <div className="space-y-6">
-        <QuickActionsPanel onQuickAction={onQuickAction} />
+        <QuickActionsPanel onQuickAction={handleQuickAction} />
         <SessionStatusPanel 
           selectedLanguage={state.selectedLanguage}
           sessionId={state.sessionId}

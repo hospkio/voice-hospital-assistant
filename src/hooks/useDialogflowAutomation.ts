@@ -33,6 +33,8 @@ export const useDialogflowAutomation = () => {
         languageCode
       );
       
+      console.log('✅ Automation service result:', result);
+      
       return {
         ...result,
         intent,
@@ -42,7 +44,7 @@ export const useDialogflowAutomation = () => {
     } catch (error) {
       console.error('❌ Automation processing error:', error);
       return {
-        responseText: 'I apologize, but I am having trouble processing your request right now.',
+        responseText: 'I apologize, but I am having trouble processing your request right now. Please try asking about hospital departments, doctor appointments, or general hospital information.',
         responseData: { error: error.message },
         confidence: 0.1,
         intent: 'unknown',
@@ -110,28 +112,33 @@ export const useDialogflowAutomation = () => {
   };
 };
 
-// Simple intent classification (can be enhanced with ML)
+// Enhanced intent classification with more patterns
 function classifyIntent(query: string): string {
   const normalizedQuery = query.toLowerCase();
   
-  // Department navigation patterns
-  if (/where\s+is|location\s+of|find\s+the|directions?\s+to|how\s+to\s+get\s+to/.test(normalizedQuery)) {
+  // Department navigation patterns - more comprehensive
+  if (/where\s+is|location\s+of|find\s+the|directions?\s+to|how\s+to\s+(get\s+to|reach)|take\s+me\s+to|show\s+me\s+the\s+way/.test(normalizedQuery)) {
     return 'navigation.department';
   }
   
-  // Appointment patterns
-  if (/book\s+appointment|schedule|appointment|doctor\s+available/.test(normalizedQuery)) {
+  // Appointment patterns - enhanced
+  if (/book\s+appointment|schedule|appointment|doctor\s+available|make\s+appointment|when\s+can\s+i\s+see|available\s+slots/.test(normalizedQuery)) {
     return 'appointment.book';
   }
   
   // Emergency patterns
-  if (/emergency|urgent|help\s+me|critical|serious/.test(normalizedQuery)) {
+  if (/emergency|urgent|help\s+me|critical|serious|chest\s+pain|heart\s+attack|stroke/.test(normalizedQuery)) {
     return 'emergency';
   }
   
-  // Hospital info patterns
-  if (/visiting\s+hours|wifi|canteen|food|wheelchair|payment|insurance|documents|bus|transport/.test(normalizedQuery)) {
+  // Hospital info patterns - more comprehensive
+  if (/visiting\s+hours|wifi|canteen|food|wheelchair|payment|insurance|documents|bus|transport|parking|pharmacy|timings|hours/.test(normalizedQuery)) {
     return 'hospital.info';
+  }
+  
+  // Doctor inquiry patterns
+  if (/doctor|physician|specialist|consultant|who\s+is\s+the\s+doctor/.test(normalizedQuery)) {
+    return 'appointment.book';
   }
   
   // Greeting patterns
@@ -139,15 +146,7 @@ function classifyIntent(query: string): string {
     return 'greeting';
   }
   
-  return 'unknown';
-}
-
-// Simple entity extraction (can be enhanced with NER)
-function extractEntities(query: string): Record<string, any> {
-  const entities: Record<string, any> = {};
-  const normalizedQuery = query.toLowerCase();
-  
-  // Extract department names
+  // Default to navigation if department names are mentioned
   const departments = [
     'cardiology', 'emergency', 'radiology', 'pharmacy', 'laboratory', 'pediatrics',
     'orthopedics', 'neurology', 'gynecology', 'ophthalmology', 'ent', 'dermatology',
@@ -156,7 +155,42 @@ function extractEntities(query: string): Record<string, any> {
   
   for (const dept of departments) {
     if (normalizedQuery.includes(dept)) {
+      return 'navigation.department';
+    }
+  }
+  
+  return 'unknown';
+}
+
+// Enhanced entity extraction
+function extractEntities(query: string): Record<string, any> {
+  const entities: Record<string, any> = {};
+  const normalizedQuery = query.toLowerCase();
+  
+  // Extract department names - comprehensive list
+  const departments = [
+    'cardiology', 'emergency', 'radiology', 'pharmacy', 'laboratory', 'pediatrics',
+    'orthopedics', 'neurology', 'gynecology', 'ophthalmology', 'ent', 'dermatology',
+    'psychiatry', 'dialysis', 'icu', 'surgery', 'physiotherapy', 'blood bank',
+    'reception', 'billing', 'cashier', 'admin', 'x-ray', 'mri', 'ct scan'
+  ];
+  
+  for (const dept of departments) {
+    if (normalizedQuery.includes(dept)) {
       entities.department = dept;
+      break;
+    }
+  }
+  
+  // Extract medical specializations
+  const specializations = [
+    'cardiologist', 'neurologist', 'pediatrician', 'orthopedic', 'gynecologist',
+    'dermatologist', 'psychiatrist', 'radiologist', 'surgeon', 'physician'
+  ];
+  
+  for (const spec of specializations) {
+    if (normalizedQuery.includes(spec)) {
+      entities.specialization = spec;
       break;
     }
   }
@@ -179,5 +213,6 @@ function extractEntities(query: string): Record<string, any> {
     entities.doctor = doctorMatch[1] || doctorMatch[2];
   }
   
+  console.log('🔍 Extracted entities:', entities);
   return entities;
 }

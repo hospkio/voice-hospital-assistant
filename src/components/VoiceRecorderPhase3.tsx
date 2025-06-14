@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { Loader2, CheckCircle, AlertCircle, Brain } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import VoiceRecorderPhase2 from './VoiceRecorderPhase2';
-import { useDialogflowCXService } from '@/hooks/useDialogflowCXService';
+import { useDialogflowAutomation } from '@/hooks/useDialogflowAutomation';
 
 interface IntentResult {
   intent: string;
@@ -19,7 +19,7 @@ const VoiceRecorderPhase3 = () => {
   const [isProcessingIntent, setIsProcessingIntent] = useState(false);
   const [intentError, setIntentError] = useState<string>('');
   
-  const { processWithDialogflowCX } = useDialogflowCXService();
+  const { processUserQuery } = useDialogflowAutomation();
 
   const handleTranscriptReady = async (transcript: string, detectedLanguage: string) => {
     console.log('🧠 Phase 3: Processing intent for transcript:', transcript);
@@ -31,7 +31,7 @@ const VoiceRecorderPhase3 = () => {
     const sessionId = `session_${Date.now()}`;
     
     try {
-      const result = await processWithDialogflowCX(transcript, sessionId, detectedLanguage);
+      const result = await processUserQuery(transcript, sessionId, detectedLanguage);
       const processingTime = Date.now() - startTime;
       
       console.log('✅ Intent processing successful:', result);
@@ -64,7 +64,7 @@ const VoiceRecorderPhase3 = () => {
           <CardContent className="p-6 text-center">
             <Loader2 className="h-8 w-8 animate-spin mx-auto mb-4 text-purple-600" />
             <h3 className="text-purple-800 font-semibold text-lg mb-2">Processing Intent...</h3>
-            <p className="text-purple-600">Understanding your request using Dialogflow CX</p>
+            <p className="text-purple-600">Understanding your request using hospital database integration</p>
           </CardContent>
         </Card>
       )}
@@ -75,12 +75,12 @@ const VoiceRecorderPhase3 = () => {
           <CardHeader className="bg-purple-100">
             <CardTitle className="flex items-center space-x-2 text-purple-800">
               <Brain className="h-6 w-6" />
-              <span>Intent Processing Results</span>
+              <span>Hospital Assistant Response</span>
             </CardTitle>
           </CardHeader>
           <CardContent className="p-6 space-y-4">
             <div className="bg-white p-4 rounded-lg border">
-              <h4 className="font-semibold text-gray-800 mb-2">AI Response:</h4>
+              <h4 className="font-semibold text-gray-800 mb-2">Response:</h4>
               <p className="text-lg text-gray-700">"{intentResult.responseText}"</p>
             </div>
             
@@ -109,7 +109,7 @@ const VoiceRecorderPhase3 = () => {
             
             {intentResult.responseData && (
               <div className="bg-white p-4 rounded-lg">
-                <h4 className="font-semibold text-gray-800 mb-2">Response Data:</h4>
+                <h4 className="font-semibold text-gray-800 mb-2">Database Results:</h4>
                 <pre className="text-sm bg-gray-100 p-2 rounded overflow-auto">
                   {JSON.stringify(intentResult.responseData, null, 2)}
                 </pre>

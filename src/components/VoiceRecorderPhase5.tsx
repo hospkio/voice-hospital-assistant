@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { useFaceDetection } from '@/hooks/useFaceDetection';
 import { useGoogleCloudServices } from '@/hooks/useGoogleCloudServices';
 import { useAudioRecorder } from '@/hooks/useAudioRecorder';
+import { useDialogflowAutomation } from '@/hooks/useDialogflowAutomation';
 import DebugPanel from '@/components/voice-recorder-phase5/DebugPanel';
 import CameraSection from '@/components/voice-recorder-phase5/CameraSection';
 import VoiceRecordingSection from '@/components/voice-recorder-phase5/VoiceRecordingSection';
@@ -12,18 +13,21 @@ import StatusPanel from '@/components/voice-recorder-phase5/StatusPanel';
 interface VoiceRecorderPhase5Props {
   selectedLanguage?: string;
   faceDetectionEnabled?: boolean;
-  autoInteractionEnabled?: boolean; // Add this prop
+  autoInteractionEnabled?: boolean;
 }
 
 const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({ 
   selectedLanguage = 'en-US',
   faceDetectionEnabled = true,
-  autoInteractionEnabled = true // Add this prop with default
+  autoInteractionEnabled = true
 }) => {
   const [greetingMessage, setGreetingMessage] = useState('');
   const [hasGreeted, setHasGreeted] = useState(false);
+  const [automationResponse, setAutomationResponse] = useState<any>(null);
 
   const { speechToText, textToSpeech, playAudio } = useGoogleCloudServices();
+  const { processUserQuery } = useDialogflowAutomation();
+  
   const { 
     videoRef, 
     isActive: isCameraActive, 
@@ -33,7 +37,7 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
     startCamera, 
     stopCamera,
     setDetectionCallback
-  } = useFaceDetection(faceDetectionEnabled); // Only auto-start if face detection is enabled
+  } = useFaceDetection(faceDetectionEnabled);
 
   const {
     isRecording,
@@ -59,7 +63,44 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
     'ta-IN': 'வணக்கம்! எங்கள் மருத்துவமனைக்கு வரவேற்கிறோம். இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்?'
   };
 
-  // Set up face detection callback for auto-greeting - ONLY if both face detection AND auto interaction are enabled
+  // Process transcript through automation system when it's ready
+  useEffect(() => {
+    const processTranscript = async () => {
+      if (transcript && transcript.trim().length > 3 && confidence > 0.5) {
+        console.log('🤖 Processing transcript through automation system:', transcript);
+        
+        try {
+          const sessionId = `phase5_session_${Date.now()}`;
+          const result = await processUserQuery(transcript, sessionId, detectedLanguage || selectedLanguage);
+          
+          console.log('✅ Automation system response:', result);
+          setAutomationResponse(result);
+          
+          // Play the response if it's successful
+          if (result.success && result.responseText) {
+            console.log('🔊 Playing automation response...');
+            const ttsResponse = await textToSpeech(result.responseText, detectedLanguage || selectedLanguage);
+            if (ttsResponse.success && ttsResponse.audioContent) {
+              await playAudio(ttsResponse.audioContent);
+            }
+          }
+        } catch (error) {
+          console.error('❌ Error processing transcript through automation:', error);
+          setAutomationResponse({ 
+            success: false, 
+            responseText: 'I apologize, but I am having trouble processing your request right now.',
+            error: error.message 
+          });
+        }
+      }
+    };
+
+    if (transcript && !isProcessing) {
+      processTranscript();
+    }
+  }, [transcript, isProcessing, confidence, detectedLanguage, selectedLanguage, processUserQuery, textToSpeech, playAudio]);
+
+  // Set up face detection callback for auto-greeting
   useEffect(() => {
     if (!faceDetectionEnabled || !autoInteractionEnabled) {
       console.log('🚫 Face detection or auto interaction disabled in Phase5, skipping callback setup', {
@@ -67,7 +108,6 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
         autoInteractionEnabled
       });
       
-      // Reset greeting state when either is disabled
       setHasGreeted(false);
       setGreetingMessage(
         !faceDetectionEnabled ? 'Face detection is disabled' : 
@@ -87,7 +127,6 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
         autoInteractionEnabled 
       });
       
-      // Double-check both settings before triggering greeting
       if (detected && !hasGreeted && faceDetectionEnabled && autoInteractionEnabled) {
         console.log('👥 Face detected in Phase5! Triggering auto-greeting...');
         triggerAutoGreeting();
@@ -96,7 +135,6 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
   }, [hasGreeted, setDetectionCallback, selectedLanguage, faceDetectionEnabled, autoInteractionEnabled]);
 
   const triggerAutoGreeting = async () => {
-    // Triple check all conditions before proceeding
     if (hasGreeted || !faceDetectionEnabled || !autoInteractionEnabled) {
       console.log('⚠️ Greeting blocked:', { 
         hasGreeted, 
@@ -109,12 +147,10 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
     console.log('🤖 Starting auto-greeting sequence with language:', selectedLanguage);
     setHasGreeted(true);
     
-    // Use the selected language for greeting
     const currentGreeting = greetings[selectedLanguage] || greetings['en-US'];
     setGreetingMessage(`Auto-greeting (${selectedLanguage}): ${currentGreeting}`);
     
     try {
-      // Generate and play greeting audio in the selected language
       console.log('🔊 Generating TTS for greeting in language:', selectedLanguage);
       const ttsResponse = await textToSpeech(currentGreeting, selectedLanguage);
       if (ttsResponse.success && ttsResponse.audioContent) {
@@ -122,7 +158,6 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
         await playAudio(ttsResponse.audioContent);
       }
       
-      // Start recording after greeting only if both settings are enabled
       if (faceDetectionEnabled && autoInteractionEnabled) {
         setTimeout(() => {
           console.log('🎤 Starting recording after greeting...');
@@ -139,6 +174,7 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
     resetTranscript();
     setGreetingMessage('');
     setHasGreeted(false);
+    setAutomationResponse(null);
   };
 
   // Reset greeting state when either setting is disabled
@@ -205,6 +241,7 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
         confidence={confidence}
         processingTime={processingTime}
         faceCount={faceDetectionEnabled ? faceCount : 0}
+        automationResponse={automationResponse}
       />
 
       <StatusPanel
