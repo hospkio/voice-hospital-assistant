@@ -13,12 +13,14 @@ interface EnhancedFaceDetectionCameraProps {
   onFaceDetected: (detected: boolean, count: number) => void;
   autoStart?: boolean;
   onAutoGreetingTriggered?: () => void;
+  showControls?: boolean;
 }
 
 const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = ({ 
   onFaceDetected, 
   autoStart = true,
-  onAutoGreetingTriggered
+  onAutoGreetingTriggered,
+  showControls = false
 }) => {
   const { 
     videoRef, 
@@ -29,7 +31,7 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
     startCamera, 
     stopCamera,
     setDetectionCallback
-  } = useFaceDetection();
+  } = useFaceDetection(autoStart);
 
   const { greetingCooldown, handleFaceDetection } = useAutoGreeting({
     onAutoGreetingTriggered
@@ -48,16 +50,6 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
       handleFaceDetection(detected, count);
     });
   }, [onFaceDetected, handleFaceDetection, setDetectionCallback]);
-
-  useEffect(() => {
-    if (autoStart) {
-      const timer = setTimeout(() => {
-        console.log('🚀 Auto-starting camera in 2 seconds...');
-        startCamera();
-      }, 2000);
-      return () => clearTimeout(timer);
-    }
-  }, [autoStart, startCamera]);
 
   const handleCameraToggle = () => {
     if (isActive) {
@@ -98,12 +90,14 @@ const EnhancedFaceDetectionCamera: React.FC<EnhancedFaceDetectionCameraProps> = 
           />
         </div>
         
-        {/* Control Button */}
-        <CameraControlButton
-          isActive={isActive}
-          isLoading={isLoading}
-          onToggle={handleCameraToggle}
-        />
+        {/* Control Button - Only show if explicitly requested */}
+        {showControls && (
+          <CameraControlButton
+            isActive={isActive}
+            isLoading={isLoading}
+            onToggle={handleCameraToggle}
+          />
+        )}
         
         {/* Status Information */}
         <div className="text-center space-y-4">

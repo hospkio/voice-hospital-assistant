@@ -5,7 +5,7 @@ import { CameraService } from '@/services/cameraService';
 import { FaceDetectionService } from '@/services/faceDetectionService';
 import { DetectionManager } from '@/services/detectionManager';
 
-export const useFaceDetection = () => {
+export const useFaceDetection = (autoStart: boolean = true) => {
   const [state, setState] = useState<FaceDetectionState>({
     isActive: false,
     facesDetected: false,
@@ -18,6 +18,7 @@ export const useFaceDetection = () => {
   const cameraServiceRef = useRef(new CameraService());
   const faceDetectionServiceRef = useRef(new FaceDetectionService(cameraServiceRef.current));
   const detectionManagerRef = useRef(new DetectionManager(faceDetectionServiceRef.current));
+  const autoStartedRef = useRef(false);
 
   const startCamera = async () => {
     if (!videoRef.current) return;
@@ -73,6 +74,21 @@ export const useFaceDetection = () => {
       callback(detected, count);
     });
   }, []);
+
+  // Auto-start camera when component mounts
+  useEffect(() => {
+    if (autoStart && !autoStartedRef.current) {
+      autoStartedRef.current = true;
+      console.log('🚀 Auto-starting face detection camera...');
+      
+      // Small delay to ensure component is fully mounted
+      const timer = setTimeout(() => {
+        startCamera();
+      }, 1000);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [autoStart]);
 
   useEffect(() => {
     return () => {

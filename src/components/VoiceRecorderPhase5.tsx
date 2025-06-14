@@ -23,7 +23,7 @@ const VoiceRecorderPhase5 = () => {
     startCamera, 
     stopCamera,
     setDetectionCallback
-  } = useFaceDetection();
+  } = useFaceDetection(true); // Auto-start enabled
 
   const {
     isRecording,
