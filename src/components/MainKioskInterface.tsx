@@ -19,6 +19,7 @@ interface MainKioskInterfaceProps {
   onDepartmentSelect: (department: string) => void;
   onShowAppointmentModal: () => void;
   onAutoGreetingTriggered: () => void;
+  faceDetectionEnabled: boolean;
 }
 
 const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
@@ -30,7 +31,8 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
   onQuickAction,
   onDepartmentSelect,
   onShowAppointmentModal,
-  onAutoGreetingTriggered
+  onAutoGreetingTriggered,
+  faceDetectionEnabled
 }) => {
   return (
     <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 space-y-6">
@@ -54,6 +56,7 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
             onFaceDetected={onFaceDetected}
             onQuickAction={onQuickAction}
             onAutoGreetingTriggered={onAutoGreetingTriggered}
+            faceDetectionEnabled={faceDetectionEnabled}
           />
         </TabsContent>
 
