@@ -16,6 +16,9 @@ const greetings = {
   'ta-IN': 'வணக்கம்! எங்கள் மருத்துவமனைக்கு வரவேற்கிறோம். இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்?'
 };
 
+const GREETING_COOLDOWN_MS = 30000; // 30 seconds cooldown between greetings
+const FACE_DETECTION_RESET_DELAY = 5000; // 5 seconds after no face to reset session
+
 export const useAutoGreetingLogic = ({
   selectedLanguage,
   faceDetectionEnabled,
@@ -24,13 +27,15 @@ export const useAutoGreetingLogic = ({
 }: UseAutoGreetingLogicProps) => {
   const [greetingMessage, setGreetingMessage] = useState('');
   const [hasGreeted, setHasGreeted] = useState(false);
+  const [lastGreetingTime, setLastGreetingTime] = useState(0);
+  const [isOnCooldown, setIsOnCooldown] = useState(false);
 
   const { textToSpeech, playAudio } = useGoogleCloudServices();
 
   // Set up face detection callback for auto-greeting
   useEffect(() => {
     if (!faceDetectionEnabled || !autoInteractionEnabled) {
-      console.log('🚫 Face detection or auto interaction disabled in Phase5, skipping callback setup', {
+      console.log('🚫 Face detection or auto interaction disabled, skipping callback setup', {
         faceDetectionEnabled,
         autoInteractionEnabled
       });
@@ -43,28 +48,42 @@ export const useAutoGreetingLogic = ({
       return;
     }
 
-    console.log('🔧 Setting up face detection callback in Phase5...');
+    console.log('🔧 Setting up face detection callback...');
     setDetectionCallback((detected: boolean, count: number) => {
-      console.log('📞 Phase5 received face detection callback:', { 
+      console.log('📞 Face detection callback:', { 
         detected, 
         count, 
         hasGreeted, 
-        selectedLanguage, 
-        faceDetectionEnabled,
-        autoInteractionEnabled 
+        isOnCooldown,
+        timeSinceLastGreeting: Date.now() - lastGreetingTime
       });
       
-      if (detected && !hasGreeted && faceDetectionEnabled && autoInteractionEnabled) {
-        console.log('👥 Face detected in Phase5! Triggering auto-greeting...');
-        triggerAutoGreeting();
+      if (detected && !hasGreeted && !isOnCooldown) {
+        const timeSinceLastGreeting = Date.now() - lastGreetingTime;
+        
+        if (timeSinceLastGreeting > GREETING_COOLDOWN_MS) {
+          console.log('👥 New user detected! Triggering auto-greeting...');
+          triggerAutoGreeting();
+        } else {
+          console.log('⏰ Greeting on cooldown, remaining:', GREETING_COOLDOWN_MS - timeSinceLastGreeting);
+        }
+      }
+      
+      // Reset greeting state when no face is detected for a while
+      if (!detected && hasGreeted) {
+        setTimeout(() => {
+          console.log('🔄 No face detected for a while, resetting greeting state...');
+          setHasGreeted(false);
+        }, FACE_DETECTION_RESET_DELAY);
       }
     });
-  }, [hasGreeted, setDetectionCallback, selectedLanguage, faceDetectionEnabled, autoInteractionEnabled]);
+  }, [hasGreeted, isOnCooldown, lastGreetingTime, setDetectionCallback, selectedLanguage, faceDetectionEnabled, autoInteractionEnabled]);
 
   const triggerAutoGreeting = async () => {
-    if (hasGreeted || !faceDetectionEnabled || !autoInteractionEnabled) {
+    if (hasGreeted || isOnCooldown || !faceDetectionEnabled || !autoInteractionEnabled) {
       console.log('⚠️ Greeting blocked:', { 
         hasGreeted, 
+        isOnCooldown,
         faceDetectionEnabled, 
         autoInteractionEnabled 
       });
@@ -73,6 +92,8 @@ export const useAutoGreetingLogic = ({
     
     console.log('🤖 Starting auto-greeting sequence with language:', selectedLanguage);
     setHasGreeted(true);
+    setIsOnCooldown(true);
+    setLastGreetingTime(Date.now());
     
     const currentGreeting = greetings[selectedLanguage] || greetings['en-US'];
     setGreetingMessage(`Auto-greeting (${selectedLanguage}): ${currentGreeting}`);
@@ -85,13 +106,17 @@ export const useAutoGreetingLogic = ({
         await playAudio(ttsResponse.audioContent);
       }
       
-      // REMOVED: Automatic recording trigger after greeting
-      // Users must now manually press the microphone button to start voice interaction
       console.log('✅ Auto-greeting completed. User must manually press microphone to start voice interaction.');
       
     } catch (error) {
       console.error('Error in auto-greeting:', error);
     }
+    
+    // Set cooldown period
+    setTimeout(() => {
+      console.log('🟢 Greeting cooldown ended');
+      setIsOnCooldown(false);
+    }, GREETING_COOLDOWN_MS);
   };
 
   // Reset greeting state when either setting is disabled
@@ -102,6 +127,8 @@ export const useAutoGreetingLogic = ({
         autoInteractionEnabled
       });
       setHasGreeted(false);
+      setIsOnCooldown(false);
+      setLastGreetingTime(0);
       setGreetingMessage(
         !faceDetectionEnabled ? 'Face detection is disabled' : 
         !autoInteractionEnabled ? 'Auto interaction is disabled' : ''
@@ -110,13 +137,18 @@ export const useAutoGreetingLogic = ({
   }, [faceDetectionEnabled, autoInteractionEnabled]);
 
   const resetGreeting = () => {
+    console.log('🔄 Manual greeting reset');
     setGreetingMessage('');
     setHasGreeted(false);
+    setIsOnCooldown(false);
+    setLastGreetingTime(0);
   };
 
   return {
     greetingMessage,
     hasGreeted,
-    resetGreeting
+    resetGreeting,
+    isOnCooldown,
+    lastGreetingTime
   };
 };

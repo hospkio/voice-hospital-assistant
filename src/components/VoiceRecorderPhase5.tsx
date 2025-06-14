@@ -52,7 +52,7 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
     audioThreshold: 0.1
   });
 
-  const { greetingMessage, hasGreeted, resetGreeting } = useAutoGreetingLogic({
+  const { greetingMessage, hasGreeted, resetGreeting, isOnCooldown } = useAutoGreetingLogic({
     selectedLanguage,
     faceDetectionEnabled,
     autoInteractionEnabled,
@@ -89,6 +89,7 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
         facesDetected={faceDetectionEnabled ? facesDetected : false}
         faceCount={faceDetectionEnabled ? faceCount : 0}
         hasGreeted={hasGreeted && faceDetectionEnabled && autoInteractionEnabled}
+        isOnCooldown={isOnCooldown}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
