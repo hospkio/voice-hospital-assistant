@@ -1,4 +1,3 @@
-
 export interface Credentials {
   googleCloudApiKey: string;
   apiKey: string; // Add root level apiKey for backward compatibility
@@ -18,19 +17,19 @@ export interface Credentials {
 }
 
 export const defaultCredentials: Credentials = {
-  googleCloudApiKey: '',
-  apiKey: '', // Add default for root level apiKey
-  projectId: '', // Add default for root level projectId
-  dialogflowProjectId: '',
-  dialogflowAgentId: '',
-  dialogflowLanguageCode: 'en',
+  googleCloudApiKey: "AIzaSyAUMuJMxBl9ph2ULMEeql9JNz_QN76d_w8",
+  apiKey: "AIzaSyAUMuJMxBl9ph2ULMEeql9JNz_QN76d_w8", // Add default for root level apiKey
+  projectId: "spartan-cosmos-462009-j5", // Add default for root level projectId
+  dialogflowProjectId: "spartan-cosmos-462009-j5",
+  dialogflowAgentId: "0647bca7-cdea-42ff-9303-db4b14113b91",
+  dialogflowLanguageCode: "en",
   dialogflowCX: {
-    projectId: '',
-    agentId: '',
-    location: 'global'
+    projectId: "spartan-cosmos-462009-j5",
+    agentId: "0647bca7-cdea-42ff-9303-db4b14113b91",
+    location: "us-central1",
   },
   vision: {
     enabled: true,
-    apiKey: '' // Add default for vision apiKey
-  }
+    apiKey: "084f3f3d3e4709297bcd50a6b730fe177a9fcd06", // Add default for vision apiKey
+  },
 };
