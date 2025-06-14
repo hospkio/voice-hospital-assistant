@@ -6,6 +6,7 @@ import VoiceRecorderPhase5 from '@/components/VoiceRecorderPhase5';
 import DepartmentsTabContent from '@/components/DepartmentsTabContent';
 import AppointmentsTabContent from '@/components/AppointmentsTabContent';
 import MapTabContent from '@/components/MapTabContent';
+import DialogflowAutomationPanel from '@/components/DialogflowAutomationPanel';
 import Settings from '@/pages/Settings';
 
 interface MainKioskInterfaceProps {
@@ -93,6 +94,9 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
           />
         );
 
+      case 'dialogflow':
+        return <DialogflowAutomationPanel />;
+
       case 'settings':
         return (
           <Settings 
@@ -119,6 +123,7 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
           <TabsTrigger value="departments" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground">Departments</TabsTrigger>
           <TabsTrigger value="appointments" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground">Appointments</TabsTrigger>
           <TabsTrigger value="map" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground">Map</TabsTrigger>
+          <TabsTrigger value="dialogflow" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground">Dialogflow</TabsTrigger>
           <TabsTrigger value="settings" className="data-[state=active]:bg-secondary data-[state=active]:text-secondary-foreground">Settings</TabsTrigger>
         </TabsList>
         
