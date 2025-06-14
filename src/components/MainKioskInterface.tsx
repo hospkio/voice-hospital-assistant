@@ -7,7 +7,7 @@ import AssistantTabContent from '@/components/AssistantTabContent';
 import MapTabContent from '@/components/MapTabContent';
 import DepartmentsTabContent from '@/components/DepartmentsTabContent';
 import AppointmentsTabContent from '@/components/AppointmentsTabContent';
-import GoogleCloudCredentials from '@/components/GoogleCloudCredentials';
+import Settings from '@/pages/Settings';
 
 interface MainKioskInterfaceProps {
   state: any;
@@ -20,6 +20,9 @@ interface MainKioskInterfaceProps {
   onShowAppointmentModal: () => void;
   onAutoGreetingTriggered: () => void;
   faceDetectionEnabled: boolean;
+  onFaceDetectionToggle: (enabled: boolean) => void;
+  onAutoInteractionToggle: () => void;
+  onLanguageChange: (language: string) => void;
 }
 
 const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
@@ -32,7 +35,10 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
   onDepartmentSelect,
   onShowAppointmentModal,
   onAutoGreetingTriggered,
-  faceDetectionEnabled
+  faceDetectionEnabled,
+  onFaceDetectionToggle,
+  onAutoInteractionToggle,
+  onLanguageChange
 }) => {
   return (
     <main className="flex-1 max-w-7xl mx-auto w-full p-4 md:p-6 space-y-6">
@@ -85,7 +91,14 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
 
         {/* Settings Tab */}
         <TabsContent value="settings">
-          <GoogleCloudCredentials />
+          <Settings
+            faceDetectionEnabled={faceDetectionEnabled}
+            onFaceDetectionToggle={onFaceDetectionToggle}
+            autoInteractionEnabled={state.autoInteractionEnabled}
+            onAutoInteractionToggle={onAutoInteractionToggle}
+            selectedLanguage={state.selectedLanguage}
+            onLanguageChange={onLanguageChange}
+          />
         </TabsContent>
       </Tabs>
     </main>

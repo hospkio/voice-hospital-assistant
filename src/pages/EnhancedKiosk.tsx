@@ -1,282 +1,331 @@
-import React, { useEffect, useRef, useCallback } from 'react';
-import KioskHeader from '@/components/KioskHeader';
-import KioskFooter from '@/components/KioskFooter';
-import MainKioskInterface from '@/components/MainKioskInterface';
-import AppointmentBookingModal from '@/components/AppointmentBookingModal';
+import React, { useEffect, useRef } from 'react';
 import { useKioskState } from '@/hooks/useKioskState';
-import { useDialogflowCXService } from '@/hooks/useDialogflowCXService';
 import { useGoogleCloudServices } from '@/hooks/useGoogleCloudServices';
-import { useToast } from '@/hooks/use-toast';
-import { hospitalDataService } from '@/services/hospitalDataService';
+import KioskHeader from '@/components/KioskHeader';
+import MainKioskInterface from '@/components/MainKioskInterface';
+import KioskFooter from '@/components/KioskFooter';
+import AppointmentBookingModal from '@/components/AppointmentBookingModal';
+import { toast } from 'sonner';
+import SecurityHelpers from '@/utils/securityHelpers';
 
-const EnhancedKiosk = () => {
-  const { toast } = useToast();
-  const { state, updateState } = useKioskState();
-  const { processWithDialogflowCX } = useDialogflowCXService();
-  const { textToSpeech, playAudio } = useGoogleCloudServices();
-  const greetingTriggeredRef = useRef(false);
-  const lastGreetingTimeRef = useRef(0);
+const EnhancedKiosk: React.FC = () => {
+  const { state, updateState, clearSensitiveData, validateState } = useKioskState();
+  const { speechToText, textToSpeech, playAudio, dialogflowProcess } = useGoogleCloudServices();
+  const recognitionRef = useRef<any>(null);
+  const processingRef = useRef(false);
 
-  // Welcome message on load
   useEffect(() => {
-    const welcomeMessage = {
-      responseText: "🌟 Welcome to MediCare Smart Kiosk! I'm your intelligent AI assistant. Step in front of the camera and I'll automatically greet you. You can also use voice commands in multiple languages. How may I help you today?",
-      intent: 'welcome',
-      entities: {},
-      confidence: 1.0,
-      responseTime: 0,
-      responseData: { 
-        type: 'welcome',
-        features: ['voice-recognition', 'face-detection', 'multi-language', 'navigation', 'appointments']
-      },
-      success: true
-    };
-    updateState({ currentResponse: welcomeMessage });
-  }, [updateState]);
-
-  const handleAutoGreeting = useCallback(async () => {
-    // Don't trigger auto greeting if face detection is disabled
-    if (!state.faceDetectionEnabled) {
-      console.log('🚫 Face detection disabled, skipping auto-greeting');
-      return;
+    if (state.isListening && !recognitionRef.current) {
+      console.log('🎤 Initializing speech recognition...');
+      initializeSpeechRecognition(state.selectedLanguage);
+    } else if (!state.isListening && recognitionRef.current) {
+      console.log('🛑 Stopping speech recognition...');
+      stopSpeechRecognition();
     }
+  }, [state.isListening, state.selectedLanguage]);
 
-    const currentTime = Date.now();
-    
-    // Prevent multiple greetings within 30 seconds
-    if (currentTime - lastGreetingTimeRef.current < 30000) {
-      console.log('🚫 Auto-greeting on cooldown, skipping');
-      return;
+  useEffect(() => {
+    if (recognitionRef.current) {
+      console.log('🌐 Updating speech recognition language to:', state.selectedLanguage);
+      recognitionRef.current.lang = state.selectedLanguage;
     }
+  }, [state.selectedLanguage]);
 
-    if (greetingTriggeredRef.current) {
-      console.log('🚫 Auto-greeting already in progress, skipping');
-      return;
-    }
-
-    greetingTriggeredRef.current = true;
-    lastGreetingTimeRef.current = currentTime;
-    
-    console.log('🎯 AUTO-GREETING TRIGGERED by face detection');
-    updateState({ isAutoDetecting: true });
-    
-    const greetings = {
-      'en-US': "Hello! Welcome to MediCare Hospital! I'm your AI assistant. I can help you with directions, appointments, and hospital information in multiple languages. How may I assist you today?",
-      'ta-IN': "வணக்கம்! மெடிகேர் மருத்துவமனைக்கு வரவேற்கிறோம்! நான் உங்கள் AI உதவியாளர். திசைகள், அப்பாயிண்ட்மென்ட்கள் மற்றும் மருத்துவமனை தகவல்களுக்கு உதவ முடியும். இன்று எப்படி உதவ முடியும்?",
-      'hi-IN': "नमस्ते! मेडिकेयर अस्पताल में आपका स्वागत है! मैं आपका AI सहायक हूं। दिशा-निर्देश, अपॉइंटमेंट और अस्पताल की जानकारी में मदद कर सकता हूं। आज कैसे सहायता करूं?",
-      'ml-IN': "നമസ്കാരം! മെഡികെയർ ഹോസ്പിറ്റലിലേക്ക് സ്വാഗതം! ഞാൻ നിങ്ങളുടെ AI അസിസ്റ്റന്റാണ്. ദിശകൾ, അപ്പോയിന്റ്മെന്റുകൾ, ആശുപത്രി വിവരങ്ങൾ എന്നിവയിൽ സഹായിക്കാം. ഇന്ന് എങ്ങനെ സഹായിക്കാം?",
-      'te-IN': "నమస్కారం! మెడికేర్ హాస్పిటల్‌కు స్వాగతం! నేను మీ AI సహాయకుడను. దిశలు, అపాయింట్‌మెంట్లు మరియు హాస్పిటల్ సమాచారంలో సహాయం చేయగలను. ఈరోజు ఎలా సహాయం చేయగలను?"
-    };
-
-    try {
-      console.log('🔊 Starting auto-greeting process...');
+  const initializeSpeechRecognition = (language: string) => {
+    if ('webkitSpeechRecognition' in window) {
+      recognitionRef.current = new webkitSpeechRecognition();
+      recognitionRef.current.continuous = true;
+      recognitionRef.current.interimResults = true;
+      recognitionRef.current.lang = language;
       
-      toast({
-        title: "👋 Face Detected!",
-        description: "AI Assistant is now active. You can speak or use voice commands.",
-        duration: 6000,
-      });
-
-      const greeting = greetings[state.selectedLanguage] || greetings['en-US'];
-      
-      const greetingResponse = {
-        responseText: greeting,
-        intent: 'auto-greeting',
-        entities: {},
-        confidence: 1.0,
-        responseTime: 0,
-        responseData: { 
-          type: 'auto-greeting', 
-          triggered: 'face-detection',
-          language: state.selectedLanguage,
-          timestamp: new Date().toISOString()
-        },
-        success: true
+      recognitionRef.current.onstart = () => {
+        console.log('⏺️ Speech recognition started');
       };
-
-      updateState({ 
-        currentResponse: greetingResponse,
-        conversationHistory: [...state.conversationHistory, {
-          type: 'assistant',
-          content: greeting,
-          timestamp: new Date(),
-          intent: 'auto-greeting',
-          confidence: 1.0,
-          trigger: 'face-detection',
-          language: state.selectedLanguage
-        }],
-        lastGreetingTime: currentTime
-      });
-
-      console.log('🎵 Playing greeting audio...');
-      const ttsResult = await textToSpeech(greeting, state.selectedLanguage);
       
-      if (ttsResult.success && ttsResult.audioContent) {
-        console.log('✅ Playing greeting audio...');
-        await playAudio(ttsResult.audioContent);
-        console.log('🎉 Greeting completed successfully!');
+      recognitionRef.current.onerror = (event: any) => {
+        console.error('❌ Speech recognition error:', event.error);
+        toast.error(`Speech recognition error: ${event.error}`);
+      };
+      
+      recognitionRef.current.onend = () => {
+        console.log('⏹️ Speech recognition ended');
+        if (state.isListening) {
+          console.log('🔄 Restarting speech recognition...');
+          recognitionRef.current.start();
+        }
+      };
+      
+      recognitionRef.current.onresult = async (event: any) => {
+        const transcript = Array.from(event.results)
+          .map((result: any) => result[0])
+          .map((result: any) => result.transcript)
+          .join('');
+          
+        const confidence = event.results[event.results.length - 1][0].confidence;
         
-        toast({
-          title: "🎤 Voice Ready",
-          description: "I can understand multiple languages. Please speak naturally.",
-          duration: 4000,
-        });
+        console.log('👂 Interim transcript:', transcript, 'Confidence:', confidence);
         
-      } else {
-        console.error('❌ TTS failed:', ttsResult.error);
-        toast({
-          title: "⚠️ Audio Issue",
-          description: "Face detected but audio failed. Voice commands still work.",
-          variant: "destructive",
-        });
-      }
-
-    } catch (error) {
-      console.error('💥 Auto-greeting error:', error);
+        // Attempt language detection
+        let detectedLanguage = language; // Default to current language
+        try {
+          const languageResult = await speechToText(transcript, language);
+          if (languageResult?.languageCode) {
+            detectedLanguage = languageResult.languageCode;
+            console.log('🌐 Detected language:', detectedLanguage);
+          }
+        } catch (langError) {
+          console.warn('⚠️ Language detection error:', langError);
+        }
+        
+        handleVoiceData(transcript, confidence, detectedLanguage);
+      };
       
-      toast({
-        title: "⚠️ Greeting Error",
-        description: "Face detected but greeting failed. Please use voice commands.",
-        variant: "destructive",
-      });
-    } finally {
-      updateState({ isAutoDetecting: false });
-      greetingTriggeredRef.current = false;
-      
-      console.log('🔄 Auto-greeting process completed');
+      recognitionRef.current.start();
+    } else {
+      console.warn('Speech recognition not supported in this browser.');
+      toast.error('Speech recognition not supported in this browser.');
+      updateState({ isListening: false });
     }
-  }, [state.selectedLanguage, state.conversationHistory, state.faceDetectionEnabled, updateState, textToSpeech, playAudio, toast]);
+  };
 
-  const handleVoiceInput = async (transcript: string, confidence: number, detectedLanguage: string) => {
-    console.log('🎤 PROCESSING VOICE INPUT:', { transcript, confidence, detectedLanguage });
-    
-    if (detectedLanguage !== state.selectedLanguage) {
-      updateState({ selectedLanguage: detectedLanguage });
-      console.log('🌐 Language auto-switched to:', detectedLanguage);
-      
-      toast({
-        title: "🌍 Language Detected",
-        description: `Now responding in ${detectedLanguage}`,
-        duration: 3000,
-      });
+  const stopSpeechRecognition = () => {
+    if (recognitionRef.current) {
+      recognitionRef.current.stop();
+      recognitionRef.current.onstart = null;
+      recognitionRef.current.onerror = null;
+      recognitionRef.current.onend = null;
+      recognitionRef.current.onresult = null;
+      recognitionRef.current = null;
     }
-    
-    await hospitalDataService.createOrUpdateKioskSession(state.sessionId, detectedLanguage);
-    
-    const newHistory = [...state.conversationHistory, {
-      type: 'user',
-      content: transcript,
-      timestamp: new Date(),
-      language: detectedLanguage,
-      confidence
-    }];
+  };
 
-    console.log('🤖 Sending to Dialogflow CX...');
-    const dialogflowResponse = await processWithDialogflowCX(transcript, state.sessionId, detectedLanguage);
+  // Enhanced language change handler
+  const handleLanguageChange = (language: string) => {
+    console.log('🌐 Language changed to:', language);
+    updateState({ selectedLanguage: language });
     
-    if (dialogflowResponse.intent?.toLowerCase().includes('appointment')) {
-      updateState({ showAppointmentModal: true });
-    }
-    
-    let selectedDepartment = state.selectedDepartment;
-    if (dialogflowResponse.responseData?.department) {
-      selectedDepartment = dialogflowResponse.responseData.department;
-    }
-    
-    updateState({
-      currentResponse: dialogflowResponse,
-      selectedDepartment,
-      conversationHistory: [...newHistory, {
-        type: 'assistant',
-        content: dialogflowResponse.responseText,
-        timestamp: new Date(),
-        intent: dialogflowResponse.intent,
-        confidence: dialogflowResponse.confidence,
-        language: detectedLanguage
-      }]
+    // Log security event for language changes
+    SecurityHelpers.logSecurityEvent('Language changed', { 
+      newLanguage: language,
+      sessionId: state.sessionId 
     });
+    
+    toast.success(`Language changed to ${language}`);
+  };
 
+  // Enhanced voice data handler with multi-language support
+  const handleVoiceData = async (transcript: string, confidence: number, detectedLanguage: string) => {
+    if (processingRef.current) {
+      console.log('🔄 Already processing, skipping...');
+      return;
+    }
+    
+    processingRef.current = true;
+    console.log('🎤 Voice data received:', { transcript, confidence, detectedLanguage });
+    
     try {
-      console.log('🔊 Playing response audio...');
-      const ttsResult = await textToSpeech(dialogflowResponse.responseText, detectedLanguage);
-      if (ttsResult.success && ttsResult.audioContent) {
-        await playAudio(ttsResult.audioContent);
-        console.log('✅ Response audio completed');
+      // Validate transcript
+      if (!transcript?.trim()) {
+        console.log('⚠️ Empty transcript received');
+        return;
+      }
+      
+      // Security validation
+      if (!SecurityHelpers.validateInput(transcript)) {
+        SecurityHelpers.logSecurityEvent('Invalid voice input detected', { 
+          transcript: transcript.substring(0, 100),
+          sessionId: state.sessionId 
+        });
+        toast.error('Invalid input detected. Please try again.');
+        return;
+      }
+      
+      // Update language if detected different from current
+      if (detectedLanguage && detectedLanguage !== state.selectedLanguage) {
+        console.log('🔄 Auto-updating language from', state.selectedLanguage, 'to', detectedLanguage);
+        updateState({ selectedLanguage: detectedLanguage });
+      }
+      
+      console.log('🤖 Processing with Dialogflow...');
+      const response = await dialogflowProcess(transcript, state.selectedLanguage, state.sessionId);
+      
+      if (response.success) {
+        console.log('✅ Dialogflow response received:', response);
+        updateState({ 
+          currentResponse: response,
+          conversationHistory: [...state.conversationHistory, {
+            query: transcript,
+            response: response.text,
+            timestamp: Date.now(),
+            language: detectedLanguage || state.selectedLanguage,
+            confidence
+          }]
+        });
+        
+        // Play audio response if available
+        if (response.audioContent) {
+          console.log('🔊 Playing audio response...');
+          await playAudio(response.audioContent);
+        }
       } else {
-        console.error('❌ Response audio failed:', ttsResult.error);
+        console.error('❌ Dialogflow processing failed:', response.error);
+        toast.error('Failed to process your request. Please try again.');
       }
     } catch (error) {
-      console.error('💥 Audio playback failed:', error);
+      console.error('❌ Error processing voice data:', error);
+      SecurityHelpers.logSecurityEvent('Voice processing error', { 
+        error: error instanceof Error ? error.message : 'Unknown error',
+        sessionId: state.sessionId 
+      });
+      toast.error('An error occurred. Please try again.');
+    } finally {
+      processingRef.current = false;
     }
-
-    toast({
-      title: "✅ Voice Processed",
-      description: `Language: ${detectedLanguage} (${Math.round(confidence * 100)}% confidence)`,
-      duration: 3000,
-    });
   };
 
-  const handleQuickAction = async (query: string) => {
-    console.log('⚡ Quick action triggered:', query);
-    await handleVoiceInput(query, 1.0, state.selectedLanguage);
-  };
-
-  const handleDepartmentSelect = (department: string) => {
-    updateState({ selectedDepartment: department });
-    handleQuickAction(`Tell me about ${department} department and show me directions`);
-  };
-
-  const handleFaceDetection = useCallback((detected: boolean, count: number) => {
-    console.log(`👥 MAIN KIOSK - Face detection callback: detected=${detected}, count=${count}, enabled=${state.faceDetectionEnabled}`);
+  // Enhanced listening state handler
+  const handleListeningChange = (listening: boolean) => {
+    console.log('🎤 Listening state changed:', listening);
+    updateState({ isListening: listening });
     
-    // Only update face detection state if face detection is enabled
+    if (listening) {
+      toast.info('Listening for your voice...');
+    }
+  };
+
+  // Enhanced face detection handler
+  const handleFaceDetected = (detected: boolean, count: number) => {
+    console.log('👥 Face detection update:', { detected, count, enabled: state.faceDetectionEnabled });
+    
+    // Only update state if face detection is enabled
     if (state.faceDetectionEnabled) {
-      updateState({ facesDetected: detected, faceCount: count });
+      updateState({ 
+        facesDetected: detected, 
+        faceCount: count,
+        lastGreetingTime: detected ? Date.now() : state.lastGreetingTime 
+      });
       
-      if (detected) {
-        console.log(`👥 FACE DETECTION: ${count} face(s) detected - triggering auto greeting`);
-        handleAutoGreeting();
+      if (detected && count > 0) {
+        console.log(`👥 ${count} face(s) detected!`);
       }
     } else {
-      // Reset face detection state when disabled
+      // Ensure state shows no faces when detection is disabled
       updateState({ facesDetected: false, faceCount: 0 });
     }
-  }, [state.faceDetectionEnabled, updateState, handleAutoGreeting]);
+  };
+
+  // Quick action handler
+  const handleQuickAction = async (query: string) => {
+    console.log('⚡ Quick action triggered:', query);
+    await handleVoiceData(query, 1.0, state.selectedLanguage);
+  };
+
+  // Department selection handler
+  const handleDepartmentSelect = (department: string) => {
+    console.log('🏥 Department selected:', department);
+    updateState({ selectedDepartment: department });
+    toast.success(`Selected ${department} department`);
+  };
+
+  // Appointment modal handler
+  const handleShowAppointmentModal = () => {
+    console.log('📅 Opening appointment modal...');
+    updateState({ showAppointmentModal: true });
+  };
+
+  // Auto-greeting handler
+  const handleAutoGreetingTriggered = async () => {
+    if (!state.autoInteractionEnabled || !state.faceDetectionEnabled) {
+      console.log('🚫 Auto-greeting disabled');
+      return;
+    }
+    
+    console.log('🤖 Auto-greeting triggered');
+    const greeting = `Hello! Welcome to our smart healthcare kiosk. I'm here to help you with information about our hospital services, departments, and appointments. How can I assist you today?`;
+    
+    try {
+      const ttsResponse = await textToSpeech(greeting, state.selectedLanguage);
+      if (ttsResponse.success && ttsResponse.audioContent) {
+        await playAudio(ttsResponse.audioContent);
+      }
+      
+      updateState({ 
+        currentResponse: { 
+          text: greeting, 
+          audioContent: ttsResponse.audioContent,
+          timestamp: Date.now()
+        }
+      });
+    } catch (error) {
+      console.error('❌ Auto-greeting error:', error);
+    }
+  };
+
+  // Toggle auto interaction
+  const handleToggleAutoInteraction = () => {
+    const newState = !state.autoInteractionEnabled;
+    console.log('🔄 Toggling auto interaction:', newState);
+    updateState({ autoInteractionEnabled: newState });
+    toast.success(`Auto interaction ${newState ? 'enabled' : 'disabled'}`);
+  };
+
+  // Toggle face detection
+  const handleToggleFaceDetection = (enabled: boolean) => {
+    console.log('🔄 Toggling face detection:', enabled);
+    updateState({ faceDetectionEnabled: enabled });
+    toast.success(`Face detection ${enabled ? 'enabled' : 'disabled'}`);
+  };
+
+  // Session validation effect
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!validateState()) {
+        console.warn('⚠️ Invalid session state detected, clearing sensitive data');
+        clearSensitiveData();
+        toast.warning('Session validation failed. Starting fresh session.');
+      }
+    }, 300000); // Check every 5 minutes
+
+    return () => clearInterval(interval);
+  }, [validateState, clearSensitiveData]);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex flex-col touch-manipulation selection:bg-blue-200">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 flex flex-col">
       <KioskHeader
         facesDetected={state.facesDetected}
         faceCount={state.faceCount}
         selectedLanguage={state.selectedLanguage}
         autoInteractionEnabled={state.autoInteractionEnabled}
         faceDetectionEnabled={state.faceDetectionEnabled}
-        onLanguageChange={(lang) => updateState({ selectedLanguage: lang })}
-        onToggleAutoInteraction={() => updateState({ 
-          autoInteractionEnabled: !state.autoInteractionEnabled 
-        })}
+        onLanguageChange={handleLanguageChange}
+        onToggleAutoInteraction={handleToggleAutoInteraction}
       />
-
+      
       <MainKioskInterface
         state={state}
         isListening={state.isListening}
-        onVoiceData={handleVoiceInput}
-        onListeningChange={(listening) => updateState({ isListening: listening })}
-        onFaceDetected={handleFaceDetection}
+        onVoiceData={handleVoiceData}
+        onListeningChange={handleListeningChange}
+        onFaceDetected={handleFaceDetected}
         onQuickAction={handleQuickAction}
         onDepartmentSelect={handleDepartmentSelect}
-        onShowAppointmentModal={() => updateState({ showAppointmentModal: true })}
-        onAutoGreetingTriggered={handleAutoGreeting}
+        onShowAppointmentModal={handleShowAppointmentModal}
+        onAutoGreetingTriggered={handleAutoGreetingTriggered}
         faceDetectionEnabled={state.faceDetectionEnabled}
+        onFaceDetectionToggle={handleToggleFaceDetection}
+        onAutoInteractionToggle={handleToggleAutoInteraction}
+        onLanguageChange={handleLanguageChange}
       />
-
+      
       <KioskFooter />
-
-      <AppointmentBookingModal
-        isOpen={state.showAppointmentModal}
-        onClose={() => updateState({ showAppointmentModal: false })}
-        department={state.selectedDepartment}
-      />
+      
+      {state.showAppointmentModal && (
+        <AppointmentBookingModal
+          isOpen={state.showAppointmentModal}
+          onClose={() => updateState({ showAppointmentModal: false })}
+          selectedDepartment={state.selectedDepartment}
+        />
+      )}
     </div>
   );
 };
