@@ -70,6 +70,7 @@ const MainKioskInterface: React.FC<MainKioskInterfaceProps> = ({
           <VoiceRecorderPhase5 
             selectedLanguage={selectedLanguage} 
             faceDetectionEnabled={faceDetectionEnabled}
+            autoInteractionEnabled={state.autoInteractionEnabled}
           />
         );
 

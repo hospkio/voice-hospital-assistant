@@ -12,11 +12,13 @@ import StatusPanel from '@/components/voice-recorder-phase5/StatusPanel';
 interface VoiceRecorderPhase5Props {
   selectedLanguage?: string;
   faceDetectionEnabled?: boolean;
+  autoInteractionEnabled?: boolean; // Add this prop
 }
 
 const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({ 
   selectedLanguage = 'en-US',
-  faceDetectionEnabled = true
+  faceDetectionEnabled = true,
+  autoInteractionEnabled = true // Add this prop with default
 }) => {
   const [greetingMessage, setGreetingMessage] = useState('');
   const [hasGreeted, setHasGreeted] = useState(false);
@@ -57,14 +59,20 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
     'ta-IN': 'வணக்கம்! எங்கள் மருத்துவமனைக்கு வரவேற்கிறோம். இன்று நான் உங்களுக்கு எப்படி உதவ முடியும்?'
   };
 
-  // Set up face detection callback for auto-greeting - only if face detection is enabled
+  // Set up face detection callback for auto-greeting - ONLY if both face detection AND auto interaction are enabled
   useEffect(() => {
-    if (!faceDetectionEnabled) {
-      console.log('🚫 Face detection disabled in Phase5, skipping callback setup');
+    if (!faceDetectionEnabled || !autoInteractionEnabled) {
+      console.log('🚫 Face detection or auto interaction disabled in Phase5, skipping callback setup', {
+        faceDetectionEnabled,
+        autoInteractionEnabled
+      });
       
-      // Reset greeting state when face detection is disabled
+      // Reset greeting state when either is disabled
       setHasGreeted(false);
-      setGreetingMessage('Face detection is disabled');
+      setGreetingMessage(
+        !faceDetectionEnabled ? 'Face detection is disabled' : 
+        !autoInteractionEnabled ? 'Auto interaction is disabled' : ''
+      );
       return;
     }
 
@@ -75,19 +83,26 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
         count, 
         hasGreeted, 
         selectedLanguage, 
-        faceDetectionEnabled 
+        faceDetectionEnabled,
+        autoInteractionEnabled 
       });
       
-      if (detected && !hasGreeted && faceDetectionEnabled) {
+      // Double-check both settings before triggering greeting
+      if (detected && !hasGreeted && faceDetectionEnabled && autoInteractionEnabled) {
         console.log('👥 Face detected in Phase5! Triggering auto-greeting...');
         triggerAutoGreeting();
       }
     });
-  }, [hasGreeted, setDetectionCallback, selectedLanguage, faceDetectionEnabled]);
+  }, [hasGreeted, setDetectionCallback, selectedLanguage, faceDetectionEnabled, autoInteractionEnabled]);
 
   const triggerAutoGreeting = async () => {
-    if (hasGreeted || !faceDetectionEnabled) {
-      console.log('⚠️ Already greeted or face detection disabled, skipping...', { hasGreeted, faceDetectionEnabled });
+    // Triple check all conditions before proceeding
+    if (hasGreeted || !faceDetectionEnabled || !autoInteractionEnabled) {
+      console.log('⚠️ Greeting blocked:', { 
+        hasGreeted, 
+        faceDetectionEnabled, 
+        autoInteractionEnabled 
+      });
       return;
     }
     
@@ -107,8 +122,8 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
         await playAudio(ttsResponse.audioContent);
       }
       
-      // Start recording after greeting only if face detection is enabled
-      if (faceDetectionEnabled) {
+      // Start recording after greeting only if both settings are enabled
+      if (faceDetectionEnabled && autoInteractionEnabled) {
         setTimeout(() => {
           console.log('🎤 Starting recording after greeting...');
           startRecording();
@@ -126,14 +141,20 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
     setHasGreeted(false);
   };
 
-  // Reset greeting state when face detection is disabled
+  // Reset greeting state when either setting is disabled
   useEffect(() => {
-    if (!faceDetectionEnabled) {
-      console.log('🔄 Face detection disabled, resetting greeting state...');
+    if (!faceDetectionEnabled || !autoInteractionEnabled) {
+      console.log('🔄 Settings changed, resetting greeting state...', {
+        faceDetectionEnabled,
+        autoInteractionEnabled
+      });
       setHasGreeted(false);
-      setGreetingMessage('Face detection is disabled');
+      setGreetingMessage(
+        !faceDetectionEnabled ? 'Face detection is disabled' : 
+        !autoInteractionEnabled ? 'Auto interaction is disabled' : ''
+      );
     }
-  }, [faceDetectionEnabled]);
+  }, [faceDetectionEnabled, autoInteractionEnabled]);
 
   const handleStartCamera = () => {
     if (faceDetectionEnabled) {
@@ -149,7 +170,7 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
         isCameraActive={isCameraActive && faceDetectionEnabled}
         facesDetected={faceDetectionEnabled ? facesDetected : false}
         faceCount={faceDetectionEnabled ? faceCount : 0}
-        hasGreeted={hasGreeted && faceDetectionEnabled}
+        hasGreeted={hasGreeted && faceDetectionEnabled && autoInteractionEnabled}
       />
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -174,7 +195,11 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
       </div>
 
       <ResultsDisplay
-        greetingMessage={faceDetectionEnabled ? greetingMessage : 'Face detection is disabled'}
+        greetingMessage={
+          !faceDetectionEnabled ? 'Face detection is disabled' :
+          !autoInteractionEnabled ? 'Auto interaction is disabled' :
+          greetingMessage
+        }
         transcript={transcript}
         detectedLanguage={detectedLanguage}
         confidence={confidence}
@@ -185,7 +210,7 @@ const VoiceRecorderPhase5: React.FC<VoiceRecorderPhase5Props> = ({
       <StatusPanel
         isCameraActive={isCameraActive && faceDetectionEnabled}
         facesDetected={faceDetectionEnabled ? facesDetected : false}
-        hasGreeted={hasGreeted && faceDetectionEnabled}
+        hasGreeted={hasGreeted && faceDetectionEnabled && autoInteractionEnabled}
         isRecording={isRecording}
         transcript={transcript}
       />

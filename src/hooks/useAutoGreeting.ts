@@ -3,9 +3,10 @@ import { useState, useRef, useEffect, useCallback } from 'react';
 
 interface UseAutoGreetingProps {
   onAutoGreetingTriggered?: () => void;
+  autoInteractionEnabled?: boolean; // Add this prop
 }
 
-export const useAutoGreeting = ({ onAutoGreetingTriggered }: UseAutoGreetingProps) => {
+export const useAutoGreeting = ({ onAutoGreetingTriggered, autoInteractionEnabled = true }: UseAutoGreetingProps) => {
   const [hasTriggeredGreeting, setHasTriggeredGreeting] = useState(false);
   const [greetingCooldown, setGreetingCooldown] = useState(false);
   const previousDetectionRef = useRef(false);
@@ -13,9 +14,12 @@ export const useAutoGreeting = ({ onAutoGreetingTriggered }: UseAutoGreetingProp
   const lastGreetingTimeRef = useRef<number>(0);
 
   const handleFaceDetection = useCallback((detected: boolean, count: number) => {
-    // If no callback is provided, don't process face detection
-    if (!onAutoGreetingTriggered) {
-      console.log('🚫 No auto-greeting callback provided, skipping face detection handling');
+    // If no callback is provided OR auto interaction is disabled, don't process face detection
+    if (!onAutoGreetingTriggered || !autoInteractionEnabled) {
+      console.log('🚫 Auto-greeting disabled, skipping face detection handling', {
+        hasCallback: !!onAutoGreetingTriggered,
+        autoInteractionEnabled
+      });
       return;
     }
 
@@ -24,7 +28,8 @@ export const useAutoGreeting = ({ onAutoGreetingTriggered }: UseAutoGreetingProp
       count, 
       previousDetection: previousDetectionRef.current, 
       hasTriggeredGreeting, 
-      greetingCooldown 
+      greetingCooldown,
+      autoInteractionEnabled
     });
     
     const currentTime = Date.now();
@@ -33,7 +38,7 @@ export const useAutoGreeting = ({ onAutoGreetingTriggered }: UseAutoGreetingProp
     // Check if this is a NEW face detection (transition from false to true)
     const isNewDetection = detected && !previousDetectionRef.current;
     
-    if (isNewDetection && !hasTriggeredGreeting && !greetingCooldown) {
+    if (isNewDetection && !hasTriggeredGreeting && !greetingCooldown && autoInteractionEnabled) {
       if (timeSinceLastGreeting > 30000) {
         console.log('🎉 NEW FACE DETECTED! Triggering auto-greeting...');
         setHasTriggeredGreeting(true);
@@ -60,18 +65,21 @@ export const useAutoGreeting = ({ onAutoGreetingTriggered }: UseAutoGreetingProp
     }
     
     previousDetectionRef.current = detected;
-  }, [hasTriggeredGreeting, greetingCooldown, onAutoGreetingTriggered]);
+  }, [hasTriggeredGreeting, greetingCooldown, onAutoGreetingTriggered, autoInteractionEnabled]);
 
-  // Reset states when callback is removed
+  // Reset states when callback is removed OR auto interaction is disabled
   useEffect(() => {
-    if (!onAutoGreetingTriggered) {
-      console.log('🔄 Auto-greeting callback removed, resetting states...');
+    if (!onAutoGreetingTriggered || !autoInteractionEnabled) {
+      console.log('🔄 Auto-greeting disabled, resetting states...', {
+        hasCallback: !!onAutoGreetingTriggered,
+        autoInteractionEnabled
+      });
       setHasTriggeredGreeting(false);
       setGreetingCooldown(false);
       previousDetectionRef.current = false;
       lastGreetingTimeRef.current = 0;
     }
-  }, [onAutoGreetingTriggered]);
+  }, [onAutoGreetingTriggered, autoInteractionEnabled]);
 
   // Cleanup on unmount
   useEffect(() => {
