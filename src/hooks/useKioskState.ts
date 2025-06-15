@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import SecurityHelpers from '@/utils/securityHelpers';
 
-interface KioskState {
+export interface KioskState {
   isListening: boolean;
   selectedLanguage: string;
   currentResponse: any;
