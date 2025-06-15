@@ -281,11 +281,10 @@ const EnhancedKiosk: React.FC = () => {
   };
 
   // Toggle auto interaction
-  const handleToggleAutoInteraction = () => {
-    const newState = !state.autoInteractionEnabled;
-    console.log('🔄 Toggling auto interaction:', newState);
-    updateState({ autoInteractionEnabled: newState });
-    toast.success(`Auto interaction ${newState ? 'enabled' : 'disabled'}`);
+  const handleToggleAutoInteraction = (enabled: boolean) => {
+    console.log('🔄 Toggling auto interaction to:', enabled);
+    updateState({ autoInteractionEnabled: enabled });
+    toast.success(`Auto interaction ${enabled ? 'enabled' : 'disabled'}`);
   };
 
   // Toggle face detection

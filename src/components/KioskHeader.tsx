@@ -4,6 +4,14 @@ import { Camera, Settings, Stethoscope } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useNavigate } from 'react-router-dom';
 import LanguageSelector from '@/components/LanguageSelector';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuCheckboxItem,
+} from '@/components/ui/dropdown-menu';
 
 interface KioskHeaderProps {
   facesDetected: boolean;
@@ -12,7 +20,7 @@ interface KioskHeaderProps {
   autoInteractionEnabled: boolean;
   faceDetectionEnabled: boolean;
   onLanguageChange: (language: string) => void;
-  onToggleAutoInteraction: () => void;
+  onToggleAutoInteraction: (enabled: boolean) => void;
 }
 
 const KioskHeader: React.FC<KioskHeaderProps> = ({
@@ -54,34 +62,34 @@ const KioskHeader: React.FC<KioskHeaderProps> = ({
             </div>
           )}
           
-          <div className="bg-blue-50 px-3 py-2 rounded-lg border border-blue-200">
-            <span className="text-blue-700 text-sm font-medium">
-              Language: {selectedLanguage}
-            </span>
-          </div>
-          
           <LanguageSelector 
             selected={selectedLanguage}
             onChange={onLanguageChange}
           />
           
-          <Button 
-            variant="outline" 
-            size="icon"
-            onClick={onToggleAutoInteraction}
-            className={`h-12 w-12 ${autoInteractionEnabled ? 'bg-green-50 border-green-200' : ''}`}
-          >
-            <Settings className="h-5 w-5" />
-          </Button>
-          
-          <Button 
-            variant="outline"
-            onClick={() => navigate('/settings')}
-            className="h-12 px-4"
-          >
-            <Settings className="h-5 w-5 mr-2" />
-            Settings
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="outline"
+                className="h-12 px-4"
+              >
+                <Settings className="h-5 w-5 mr-2" />
+                Settings
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-56">
+              <DropdownMenuItem onClick={() => navigate('/settings')}>
+                <span>All Settings</span>
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuCheckboxItem
+                checked={autoInteractionEnabled}
+                onCheckedChange={onToggleAutoInteraction}
+              >
+                Auto Interaction
+              </DropdownMenuCheckboxItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
       </div>
     </header>
